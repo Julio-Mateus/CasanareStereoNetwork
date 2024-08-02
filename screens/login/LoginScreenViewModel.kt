@@ -1,22 +1,40 @@
+//@file:Suppress("UNREACHABLE_CODE")
+
 package com.jcmateus.casanarestereo.screens.login
 
 import android.util.Log
 import android.widget.Toast
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.jcmateus.casanarestereo.model.User
+//import kotlinx.coroutines.DefaultExecutor.delay
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class LoginScreenViewModel: ViewModel() {
     private val auth: FirebaseAuth = Firebase.auth
     private val _loading = MutableLiveData(false)
-    
+    private val _errorMessage = MutableLiveData<String?>(null)
+    val errorMessage: LiveData<String?> = _errorMessage
+    val loading: LiveData<Boolean> = _loading
+    private val _successMessage = MutableLiveData<String?>(null)
+    val successMessage: LiveData<String?> = _successMessage
+
+    fun clearErrorMessage() {
+        _errorMessage.value = null
+    }
+    fun clearSuccessMessage() {
+        _successMessage.value = null
+    }
+
    // Login with Google
     fun signInWithGoogleCredential(credential: AuthCredential, home:()->Unit)
     = viewModelScope.launch {
@@ -25,11 +43,13 @@ class LoginScreenViewModel: ViewModel() {
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         Log.d("CasanareStereo", "Logueado con Google Exitoso")
+                        _successMessage.value = "¡Logueado con éxito!"
                         home()
                     }
                 }
                 .addOnFailureListener {
                     Log.d("CasanareStereo", "Error al logear con Google")
+                    _errorMessage.value = "Credenciales incorrectas"
                 }
         }        
         catch (ex: Exception){
@@ -43,43 +63,90 @@ class LoginScreenViewModel: ViewModel() {
     fun signInWithEmailAndPassword(email:String, password:String, home: ()-> Unit)
         = viewModelScope.launch {
             try {
+                _loading.value = true
                 auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
+                        _loading.value = false
                         if (task.isSuccessful) {
                             Log.d("CasanareStereo", "signInWithEmailAndPassword logueado!!")
-                            home()
-                        }
-                        else {
-                            Log.d("CasanareStereo", "signInWithEmailAndPassword: ${task.result}")
+                            _successMessage.value = "¡Logeado con éxito!"
+                            viewModelScope.launch { // Lanzar una nueva corrutina
+                                delay(1000) // Esperar 1 segundo
+                                home()
+                            }
+                        }else{
+                            // Manejo de la excepción FirebaseAuthInvalidCredentialsException
+                            if (task.exception is FirebaseAuthInvalidCredentialsException) {
+                                val authException = task.exception as FirebaseAuthInvalidCredentialsException
+                                when (authException.errorCode) {
+                                    "ERROR_WRONG_PASSWORD" -> {
+                                        _errorMessage.value ="Contraseña incorrecta"
+                                    }
+                                    "ERROR_USER_NOT_FOUND" -> {
+                                        _errorMessage.value = "Usuario no encontrado"
+                                    }
+                                    "ERROR_INVALID_EMAIL" -> {
+                                        _errorMessage.value = "Correo electrónico inválido"
+                                    }
+                                    else -> {
+                                        _errorMessage.value = "Error al iniciar sesión"
+                                    }
+                                }
+                            }else {
+                                // Verificar si la tarea ha sido exitosa antes de acceder a task.result
+                                if (task.isSuccessful) {
+                                    Log.d("CasanareStereo", "signInWithEmailAndPassword: ${task.result}")
+                                }
+                                Log.d("CasanareStereo", "signInWithEmailAndPassword: ${task.result}")
+                                _errorMessage.value = "Credenciales incorrectas"
+                            }
                         }
                     }
 
-            }
-            catch (ex: Exception){
+            } catch (ex: Exception){
+                _loading.value = false // Ocultar indicador de progreso
                 Log.d("CasanareStereo", "signInWithEmailAndPassword : ${ex.message}"
                 )
+                _errorMessage.value =  "Error al iniciar sesión"
             }
         }
     fun createUserWithEmailAndPassword(email: String,password: String, home: () -> Unit){
-        if (_loading.value == false){
-            _loading.value = true
-            auth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
+        if (_loading.value == true) return // Evitar múltiples llamadas
+        if (!isValidEmail(email)) {
+            _errorMessage.value = "Correo electrónico inválido"
+            return
+        }
+        if (password.length < 6) {
+            _errorMessage.value = "La contraseña debe tener al menos 6 caracteres"
+            return
+        }
+        _loading.value = true
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                _loading.value = false
                     if (task.isSuccessful) {
                         val displayName = task.result.user?.email?.split("@")?.get(0)
                         createUser(displayName)
-                        home()
+                        _successMessage.value = "¡Cuenta creada con éxito!"
+                        viewModelScope.launch{
+                            // Lanzar una nueva corrutina
+                            delay(1000) // Esperar 1 segundo
+                            home()
+                        }
+
                     }
                     else {
                         Log.d("CasanareStereo", "createUserWithEmailAndPassword: ${task.result}")
+                        _errorMessage.value = task.exception?.message ?: "Error al crear la cuenta"
                     }
-                    _loading.value = false
                 }
         }
+    private fun isValidEmail(email: String): Boolean {
+        // Implementa tu lógica de validación de correo electrónico
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
-
     private fun createUser(displayName: String?) {
-        val userId = auth.currentUser?.uid
+        val userId = auth.currentUser?.uid?: return
         //val user = mutableMapOf<String, Any>()
 
         //user["user_id"] = userId.toString()
@@ -96,14 +163,25 @@ class LoginScreenViewModel: ViewModel() {
         ).toMap()
 
         FirebaseFirestore.getInstance().collection("users")
-            .add(user)
+            .document(userId) // Usar el ID del usuario como ID del documento
+            .set(user)
             .addOnSuccessListener {
+                _successMessage.value = "¡Creado con éxito!"
                 Log.d("CasanareStereo", "Creado con exito: $it.id")
             }
             .addOnFailureListener { e ->
+                _errorMessage.value = "Error al crear la cuenta + ${e.message}"
+                viewModelScope.launch{
+                    // Retrasar la navegación
+                    delay(1000) // Esperar 1 segundo
+                }
+
                 Log.w("CasanareStereo", "Error de creacion de usuario", e)
             }
 
     }
 }
+
+
+
 

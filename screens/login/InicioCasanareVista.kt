@@ -1,15 +1,11 @@
-package com.jcmateus.casanarestereo
+package com.jcmateus.casanarestereo.screens.login
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,34 +24,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
-//import com.jcmateus.casanarestereo.navigation.AuthenticationNavHost
-//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
-import com.jcmateus.casanarestereo.navigation.NavigationHost
-import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
-
-class MainActivity() : ComponentActivity() {
-    // Constructor vacío
-    
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            CasanareStereoTheme{
-                NavigationHost( innerPadding = PaddingValues())
-        }
-
-        }
-    }
-}
+import com.jcmateus.casanarestereo.R
 
 @Composable
-fun PantallaPresentacion(navController: NavController) {
+fun InicioCasanareVista(navController: NavController){
     Box {
         // Imagen de fondo
         Image(
@@ -109,7 +84,7 @@ fun PantallaPresentacion(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(50.dp))
             OutlinedButton(
-                onClick = {navController.navigate(Destinos.CasanareLoginScreen.ruta)},
+                onClick = {navController.navigate("Login")},
                 modifier = Modifier
                     .width(280.dp)// Agrega un ancho fijo al botón
                     .height(60.dp),// Agrega un alto fijo al botón
@@ -127,9 +102,7 @@ fun PantallaPresentacion(navController: NavController) {
             }
             Spacer(modifier = Modifier.height(30.dp))
             OutlinedButton(
-                onClick = {
-                    navController.navigate(Destinos.FormularioScreen.ruta)
-                },
+                onClick = {navController.navigate("Home")},
                 modifier = Modifier
                     .width(280.dp)// Agrega un ancho fijo al botón
                     .height(60.dp),// Agrega un alto fijo al botón
@@ -174,10 +147,4 @@ fun PantallaPresentacion(navController: NavController) {
 
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CasanareStereoPreview() {
-    PantallaPresentacion(navController = rememberNavController())
 }
