@@ -3,15 +3,25 @@ package com.jcmateus.casanarestereo.navigation
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.savedinstancestate.rememberSavedInstanceState
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.PantallaPresentacion
-import com.jcmateus.casanarestereo.screens.formulario.FormularioScreen
+import com.jcmateus.casanarestereo.screens.formulario.Docentes
+import com.jcmateus.casanarestereo.screens.formulario.Estudiantes
+import com.jcmateus.casanarestereo.screens.formulario.Estudiantes1
+import com.jcmateus.casanarestereo.screens.formulario.Estudiantes2
+import com.jcmateus.casanarestereo.screens.formulario.Estudiantes3
 import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
+import com.jcmateus.casanarestereo.screens.formulario.PantallaFinalScreen
+import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
+import com.jcmateus.casanarestereo.screens.formulario.SeleccionRolScreen
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.home.Home
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
@@ -35,8 +45,8 @@ import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 
 @Composable
-fun NavigationHost(innerPadding: PaddingValues) {
-    val navController = rememberNavController()
+fun NavigationHost(navController: NavHostController, innerPadding: PaddingValues) {
+    val viewModel: FormularioViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination = Destinos.PantallaPresentacion.ruta,
@@ -52,9 +62,27 @@ fun NavigationHost(innerPadding: PaddingValues) {
         composable(Destinos.HomeCasanareVista.ruta){
             Home(navController = navController)
         }
-        composable(Destinos.FormularioScreen.ruta){
-            val viewModel: FormularioViewModel = viewModel()
-            FormularioScreen(navController = navController, viewModel = viewModel)
+        // Rutas del formulario
+        composable(PantallaFormulario.SeleccionRol.ruta) {
+            SeleccionRolScreen(navController)
+        }
+        composable(PantallaFormulario.Estudiantes.ruta) {
+            Estudiantes(viewModel, navController)
+        }
+        composable(PantallaFormulario.Estudiantes1.ruta) {
+            Estudiantes1(viewModel, navController)
+        }
+        composable(PantallaFormulario.Estudiantes2.ruta) {
+            Estudiantes2(viewModel, navController)
+        }
+        composable(PantallaFormulario.Estudiantes3.ruta) {
+            Estudiantes3(viewModel, navController)
+        }
+        composable(PantallaFormulario.Docentes.ruta) {
+            Docentes(viewModel, navController)
+        }
+        composable(PantallaFormulario.PantallaFinal.ruta) {
+            PantallaFinalScreen(viewModel, navController)
         }
         composable(Destinos.CasanareLoginScreen.ruta){
             CasanareLoginScreen(navController = navController)

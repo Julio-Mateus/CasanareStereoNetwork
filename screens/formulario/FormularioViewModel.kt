@@ -1,12 +1,18 @@
 package com.jcmateus.casanarestereo.screens.formulario
 
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.launch
 
 class FormularioViewModel : ViewModel() {
     private val _formularioData = mutableStateListOf<Pair<String, Any>>()
     val formularioData: List<Pair<String, Any>> = _formularioData
+    public val _formularioGuardado = mutableStateOf(false)
+    val formularioGuardado = _formularioGuardado
 
     fun guardarFormularioEnFirebase(tipoFormulario: String, param: (Any) -> Unit) {
         val database = FirebaseDatabase.getInstance()
@@ -18,12 +24,15 @@ class FormularioViewModel : ViewModel() {
 
         nuevoFormularioRef.setValue(formularioMap)
             .addOnSuccessListener {
-                // Mostrar mensaje de éxito al usuario (Snackbar o Toast)
-                _formularioData.clear() // Limpiar el HashMap después de guardar
+                viewModelScope.launch { // Lanzar una coroutine en el viewModelScope
+                    _formularioGuardado.value = true
+                    param(true) // Llamar al callback en el hilo principal
+                }
             }
             .addOnFailureListener {
-                // Mostrar mensaje de error al usuario (Snackbar o Toast)
-                // Registrar el error (opcional)
+                viewModelScope.launch { // Lanzar una coroutine en el viewModelScopete
+                    param(false) // Llamar al callback en el hilo principal
+                }
             }
     }
 

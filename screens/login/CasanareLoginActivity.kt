@@ -1,6 +1,8 @@
 package com.jcmateus.casanarestereo.screens.login
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -8,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 //import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 //import androidx.compose.foundation.border
@@ -33,10 +36,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +53,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -61,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 //import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key.Companion.Home
@@ -69,9 +74,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,8 +92,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn.*
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.GoogleAuthProvider
+import com.jcmateus.casanarestereo.AnimatedSoundWave
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.VistasCasanare
+import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.home.HomeActivity
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
@@ -127,7 +139,7 @@ fun CasanareLoginScreen(
             val account = task.getResult(ApiException::class.java)
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
             viewModel.signInWithGoogleCredential(credential) {
-                navController.navigate(Destinos.FormularioScreen.ruta)
+                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
             }
         }
         catch(ex: Exception){
@@ -137,7 +149,7 @@ fun CasanareLoginScreen(
     }
     // Mostrar indicador de progreso si isLoading es true
     if (isLoading) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
     when{
         // Mostrar mensaje de error si errorMessage no es nulo
@@ -153,11 +165,11 @@ fun CasanareLoginScreen(
             }
         }
     }
-
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        color = MaterialTheme.colorScheme.background
     ) {
         Box {
             // Imagen de fondo
@@ -178,7 +190,8 @@ fun CasanareLoginScreen(
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top,
+            modifier= Modifier.fillMaxSize()
         ) {
             Box {
 
@@ -186,89 +199,30 @@ fun CasanareLoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
-                        contentDescription = "Logo",
-                        modifier = Modifier
-                            //.width(48.dp) // Agrega un ancho fijo al logo
-                            .size(80.dp) // Establece el tamaño del logo
-
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    AnimatedSoundWave()
+                    Spacer(modifier = Modifier.padding(20.dp))
                     Text(
                         text = "CASANARE STEREO NETWORK",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                        fontSize = 20.sp,
-                        color = MaterialTheme.colorScheme.surface // Cambia el color del texto para que se vea sobre la imagen
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
                     )
                     Text(
                         text = "DONDE LATE EL CORAZÓN DEL LLANO",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                        //fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.surface  // Cambia el color del texto para que se vea sobre la imagen
+                        color = MaterialTheme.colorScheme.onBackground  // Cambia el color del texto para que se vea sobre la imagen
                     )
                 }
             }
-            Spacer(modifier = Modifier.padding(65.dp))
-            if (showLoginForm.value) {
-                Text(
-                    text = "Crea una cuenta",
-                    color = MaterialTheme.colorScheme.surface,
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                )
-                UserForm(
-                    isCreateAccount = true
-                ) { email, password ->
-                    Log.d("Casanare", "Creando cuenta con$email y $password")
-                    viewModel.createUserWithEmailAndPassword(email, password) {
-                        navController.navigate(Destinos.FormularioScreen.ruta)
-                    }
-                }
-            } else {
-                Text(text = "Inicia sesión",
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.surface)
-                UserForm(
-                    isCreateAccount = false,
-
-                    )
-                { email, password ->
-                    Log.d("Casanare", "Iniciando sesión con $email y $password")
-                    viewModel.signInWithEmailAndPassword(email, password) {
-                        navController.navigate(Destinos.HomeCasanareVista.ruta)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.padding(15.dp))
-            Row(
-                modifier = Modifier.padding(15.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                val text1 = if (
-                    showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
-                val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
-                Text(
-                    text = text1, color = MaterialTheme.colorScheme.surface,
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
-                )
-                Text(text = text2,
-                    modifier = Modifier
-                        .clickable { showLoginForm.value = !showLoginForm.value }
-                        .padding(start = 10.dp),
-                    color = MaterialTheme.colorScheme.error
-
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
-                    .padding(4.dp)
-                    .absoluteOffset(x = 0.dp, y = (-403).dp)
+                    .padding(15.dp)
+                    //.absoluteOffset(x = 0.dp, y = (-403).dp)
                     .clip(RoundedCornerShape(15.dp))
                     .size(40.dp)
                     .background(MaterialTheme.colorScheme.onBackground)
@@ -290,21 +244,83 @@ fun CasanareLoginScreen(
                     painter = painterResource(id = R.drawable.logo_de_google_48),
                     contentDescription = "Google",
                     modifier = Modifier
-                        .size(50.dp)
-                        .padding(8.dp)
+                        .size(38.dp)
+                        .padding(6.dp)
                 )
                 Text(text = "Continuar con Google",
-                    fontSize = 18.sp,
+                    fontSize = 12.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            if (showLoginForm.value) {
+                Text(
+                    text = "Crea una cuenta",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                )
+                UserForm(
+                    isCreateAccount = true,
+                    CheckNotificaciones = CheckNotificaciones,
+                    CheckTerminos = CheckTerminos
+                ) { email, password ->
+                    Log.d("Casanare", "Creando cuenta con$email y $password")
+                    viewModel.createUserWithEmailAndPassword(email, password, CheckNotificaciones, CheckTerminos) {
+                        navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+                    }
+                }
+            } else {
+                Text(text = "Inicia sesión",
+                    fontSize = 18.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimary)
+                UserForm(
+                    isCreateAccount = false,
+                    CheckNotificaciones = CheckNotificaciones,
+                    CheckTerminos = CheckTerminos
+
                     )
+                { email, password ->
+                    Log.d("Casanare", "Iniciando sesión con $email y $password")
+                    viewModel.signInWithEmailAndPassword(email, password, CheckNotificaciones, CheckTerminos) {
+                        navController.navigate(Destinos.HomeCasanareVista.ruta)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.padding(15.dp))
+
+            Row(
+                modifier = Modifier.padding(15.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val text1 = if (
+                    showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
+                val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
+                Text(
+                    text = text1, color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
+                )
+                Text(text = text2,
+                    modifier = Modifier
+                        .clickable { showLoginForm.value = !showLoginForm.value }
+                        .padding(start = 15.dp),
+                    color = MaterialTheme.colorScheme.error
+
+                )
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(
                     checked = CheckNotificaciones,
-                    onCheckedChange = { CheckNotificaciones = it }
+                    onCheckedChange = { CheckNotificaciones = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
+                        uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                    )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Acepto Notificaciones")
@@ -312,43 +328,57 @@ fun CasanareLoginScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val annotatedString = buildAnnotatedString {
+                    withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
+                        append("términos y condiciones")
+                    }
+                }
                 Checkbox(
                     checked = CheckTerminos,
-                    onCheckedChange = { CheckTerminos = it }
+                    onCheckedChange = { CheckTerminos = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
+                        uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                    )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("términos y condiciones")
+                Text(
+                    text = annotatedString,
+                    modifier = Modifier.clickable {
+                        // Abrir la página de términos y condiciones
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("URL_DE_TERMINOS_Y_CONDICIONES"))
+                        context.startActivity(intent)
+                    }
+                )
             }
 
 
         }
-
-
     }
-
     // Mostrar SnackbarHost
     SnackbarHost(hostState = snackbarHostState)
 }
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 fun ShowSnackbar(snackbarHostState: SnackbarHostState, message: String, action: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    scope.launch {
+    LaunchedEffect(key1 = message) { // Lanzar la corrutina con LaunchedEffect
         val snackbarResult = snackbarHostState.showSnackbar(
             message = message,
+            withDismissAction = true,
             duration = SnackbarDuration.Short,
             actionLabel = "Aceptar"
         )
         if (snackbarResult == SnackbarResult.ActionPerformed || snackbarResult == SnackbarResult.Dismissed) {
-            action()// Ejecutar la acción después de que se muestre el Snackbar
+            action()
         }
-
     }
 }
 
 @Composable
 fun UserForm(
     isCreateAccount: Boolean = false,
+    CheckNotificaciones: Boolean,
+    CheckTerminos: Boolean,
     onDone: (String, String) -> Unit = { _, _ -> }
 ) {
     val email = rememberSaveable {
@@ -360,9 +390,7 @@ fun UserForm(
     val passwordVisible = rememberSaveable {
         mutableStateOf(false)
     }
-    val valido = remember(email.value, password.value) {
-        email.value.trim().isNotEmpty() && password.value.trim().isNotEmpty()
-    }
+    val valido = email.value.trim().isNotEmpty() && password.value.trim().isNotEmpty() && CheckNotificaciones && CheckTerminos
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -375,6 +403,7 @@ fun UserForm(
             labelId = "Contraseña",
             passwordVisible = passwordVisible,
         )
+        //Spacer(modifier = Modifier.height(16.dp)) // Espacio entre campos y botón
         SubmitButton(
             textId = if (isCreateAccount) "Crear cuenta" else "Iniciar sesión",
             inputValido = valido,
@@ -399,12 +428,13 @@ fun SubmitButton(
         onClick = onClic,
         modifier = Modifier
             .padding(8.dp)
-            .fillMaxWidth(0.8f),
-        shape = CircleShape,
+            .fillMaxWidth(0.8f)
+            .then(if (inputValido) Modifier.shadow(elevation = 2.dp, shape = MaterialTheme.shapes.medium) else Modifier), // Añadir sombra si está habilitado,
+        shape = MaterialTheme.shapes.medium,
         enabled = inputValido,
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.secondary
+            containerColor = if (inputValido) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surfaceVariant, // Cambiar color si está deshabilitado
+            contentColor = if (inputValido) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant // Cambiar color si está deshabilitado
         )
 
     ) {
@@ -412,7 +442,8 @@ fun SubmitButton(
             text = textId,
             modifier = Modifier
                 .padding(4.dp),
-            //MaterialTheme.colorScheme.error
+            color = if (inputValido) MaterialTheme.colorScheme.primary else Color.White, // Cambiar color si está deshabilitado
+            // ... otros estilos
 
         )
     }
@@ -432,10 +463,9 @@ fun PasswordInput(
     OutlinedTextField(
         value = passwordState.value,
         onValueChange = { passwordState.value = it },
-        label = { Text(text = labelId, color = MaterialTheme.colorScheme.surface) },
+        label = { Text(text = labelId, color = MaterialTheme.colorScheme.onPrimary) },
         singleLine = true,
-        textStyle = MaterialTheme.typography.bodySmall,
-        colors = OutlinedTextFieldDefaults.colors(Color.LightGray),
+        colors = OutlinedTextFieldDefaults.colors(Color.White),
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Password
         ),
@@ -448,7 +478,8 @@ fun PasswordInput(
             if (passwordState.value.isNotBlank()) {
                 PasswordVisibleIcon(passwordVisible)
             } 
-        }
+        },
+        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onBackground)
     )
 
 }
@@ -469,7 +500,7 @@ fun PasswordVisibleIcon(
         Icon(
             imageVector = image,
             contentDescription = "",
-            tint = MaterialTheme.colorScheme.surface
+            tint = MaterialTheme.colorScheme.onPrimary
         )
     }
 }
@@ -498,15 +529,16 @@ fun InputField(
     OutlinedTextField(
         value = valueState.value,
         onValueChange = { valueState.value = it },
-        label = { Text(text = labelId, color = MaterialTheme.colorScheme.surface) },
+        label = { Text(text = labelId, color = MaterialTheme.colorScheme.onPrimary) },
         singleLine = isSingleLine,
         modifier = Modifier
             .padding(bottom = 10.dp, start = 10.dp, end = 10.dp)
             .fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(Color.LightGray),
+       colors = OutlinedTextFieldDefaults.colors(Color.White),
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType
-        )
+        ),
+        textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground)
     )
 
 }

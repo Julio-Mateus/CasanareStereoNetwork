@@ -4,6 +4,8 @@ package com.jcmateus.casanarestereo.screens.login
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -11,13 +13,17 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.jcmateus.casanarestereo.model.User
+import kotlinx.coroutines.Dispatchers
 //import kotlinx.coroutines.DefaultExecutor.delay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class LoginScreenViewModel: ViewModel() {
     private val auth: FirebaseAuth = Firebase.auth
@@ -27,6 +33,12 @@ class LoginScreenViewModel: ViewModel() {
     val loading: LiveData<Boolean> = _loading
     private val _successMessage = MutableLiveData<String?>(null)
     val successMessage: LiveData<String?> = _successMessage
+    private var _passwordVisible = mutableStateOf(false)
+    val passwordVisible: State<Boolean> = _passwordVisible
+
+
+    fun updatePasswordVisible(isVisible: Boolean) {_passwordVisible.value = isVisible
+    }
 
     fun clearErrorMessage() {
         _errorMessage.value = null
@@ -60,11 +72,19 @@ class LoginScreenViewModel: ViewModel() {
     }
 
     // Login with Correo y Contraseña
-    fun signInWithEmailAndPassword(email:String, password:String, home: ()-> Unit)
+    fun signInWithEmailAndPassword(
+        email:String,
+        password:String,
+        checkNotificaciones: Boolean,
+        checkTerminos: Boolean,
+        home: ()-> Unit
+    )
         = viewModelScope.launch {
+        val valido =email.trim().isNotEmpty() && password.trim().isNotEmpty() && checkNotificaciones && checkTerminos
+        if(valido){
             try {
                 _loading.value = true
-                auth.signInWithEmailAndPassword(email, password)
+                auth.signInWithEmailAndPassword(email, password, )
                     .addOnCompleteListener { task ->
                         _loading.value = false
                         if (task.isSuccessful) {
@@ -109,38 +129,89 @@ class LoginScreenViewModel: ViewModel() {
                 )
                 _errorMessage.value =  "Error al iniciar sesión"
             }
+        }else {
+            _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
         }
-    fun createUserWithEmailAndPassword(email: String,password: String, home: () -> Unit){
-        if (_loading.value == true) return // Evitar múltiples llamadas
-        if (!isValidEmail(email)) {
-            _errorMessage.value = "Correo electrónico inválido"
-            return
-        }
-        if (password.length < 6) {
-            _errorMessage.value = "La contraseña debe tener al menos 6 caracteres"
-            return
-        }
-        _loading.value = true
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                _loading.value = false
-                    if (task.isSuccessful) {
-                        val displayName = task.result.user?.email?.split("@")?.get(0)
-                        createUser(displayName)
-                        _successMessage.value = "¡Cuenta creada con éxito!"
-                        viewModelScope.launch{
-                            // Lanzar una nueva corrutina
-                            delay(1000) // Esperar 1 segundo
-                            home()
-                        }
 
-                    }
-                    else {
-                        Log.d("CasanareStereo", "createUserWithEmailAndPassword: ${task.result}")
-                        _errorMessage.value = task.exception?.message ?: "Error al crear la cuenta"
+        }
+    fun createUserWithEmailAndPassword(
+        email: String,
+        password: String,
+        checkNotificaciones: Boolean,
+        checkTerminos: Boolean,
+        home: () -> Unit
+    ) {
+        val valido = email.trim().isNotEmpty() && password.trim().isNotEmpty() && checkNotificaciones && checkTerminos
+        if (valido) {
+            if (_loading.value == true) return
+            if (!isValidEmail(email)) {
+                _errorMessage.value = "Correo electrónico inválido"
+                return
+            }
+            if (password.length < 6) {
+                _errorMessage.value = "La contraseña debe tener al menos 6 caracteres"
+                return
+            }
+            _loading.value = true
+
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    auth.fetchSignInMethodsForEmail(email)
+                        .addOnSuccessListener { methods ->
+                            viewModelScope.launch(Dispatchers.Main) {
+                                if (methods.signInMethods?.isNotEmpty() == true) {
+                                    _errorMessage.value = "El correo electrónico ya está en uso"
+                                    _loading.value = false
+                                } else {
+                                    auth.createUserWithEmailAndPassword(email, password)
+                                        .addOnCompleteListener { task ->
+                                            if (task.isSuccessful) {
+                                                val displayName = task.result.user?.email?.split("@")?.get(0)
+                                                createUser(displayName)
+                                                _successMessage.value = "¡Cuenta creada con éxito!"
+                                                viewModelScope.launch {
+                                                    delay(1000)
+                                                    home()
+                                                }
+                                            } else {
+                                                try {
+                                                    throw task.exception!!
+                                                } catch (e: FirebaseAuthUserCollisionException) {
+                                                    viewModelScope.launch(Dispatchers.Main) {
+                                                        _errorMessage.value = "El correo electrónico ya está en uso"
+                                                    }
+                                                } catch (e: Exception) {
+                                                    viewModelScope.launch(Dispatchers.Main) {
+                                                        Log.d("CasanareStereo", "createUserWithEmailAndPassword: ${task.result}")
+                                                        _errorMessage.value = e.message ?: "Error al crear la cuenta"
+                                                    }
+                                                } finally {
+                                                    viewModelScope.launch(Dispatchers.Main) {
+                                                        _loading.value = false
+                                                    }
+                                                }
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            viewModelScope.launch(Dispatchers.Main) {
+                                _errorMessage.value = e.message ?: "Error desconocido"
+                                _loading.value = false
+                            }
+                        }
+                } catch (e: Exception) {
+                    viewModelScope.launch(Dispatchers.Main) {
+                        _errorMessage.value = e.message ?: "Error desconocido"
+                        _loading.value = false
                     }
                 }
+            }
+        } else {
+            _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
         }
+    }
     private fun isValidEmail(email: String): Boolean {
         // Implementa tu lógica de validación de correo electrónico
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()

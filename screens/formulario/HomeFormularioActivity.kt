@@ -1,32 +1,37 @@
 package com.jcmateus.casanarestereo.screens.formulario
 
+//noinspection UsingMaterialAndMaterial3Libraries
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.DropdownMenuItem
-import androidx.compose.material.ScaffoldState
+//noinspection UsingMaterialAndMaterial3Libraries
+import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.TipsAndUpdates
-import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -34,9 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,192 +50,250 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.jcmateus.casanarestereo.AnimatedSoundWave
+import com.jcmateus.casanarestereo.R
+import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.ui.theme.CasanareStereoTheme
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class HomeFormularioActivity() : ComponentActivity() {
+class HomeFormularioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             CasanareStereoTheme {
+                val navController = rememberNavController()
                 val viewModel: FormularioViewModel = viewModel()
-                FormularioScreen( viewModel = viewModel, navController = rememberNavController())
+                LaunchedEffect(Unit) {
+                    navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+                }
+                NavigationHost(navController = navController, innerPadding = PaddingValues())
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FormularioScreen(viewModel: FormularioViewModel, navController: NavHostController) {
-    val viewModel: FormularioViewModel = viewModel()
-    val pagerState = rememberPagerState(pageCount = { 7 })
-    val coroutineScope = rememberCoroutineScope()
-    var showFirstViewButtons by remember { mutableStateOf(true) }
-    var showSnackbar by remember { mutableStateOf(false) }
+fun PantallaFinalScreen(viewModel: FormularioViewModel, navController: NavHostController) {
+    val formularioGuardado = viewModel.formularioGuardado.value // Accede al valor directamente
 
-    HorizontalPager(state = pagerState, userScrollEnabled = false) { page ->
-        when (page) {
-            0 -> {
+    LaunchedEffect(key1 = formularioGuardado) {
+        if(formularioGuardado){
+            delay(5000) // Retraso de 1 segundo (opcional)
+            navController.navigate(Destinos.Pantalla16.ruta) // Navega a VideosYoutubeView
+            viewModel._formularioGuardado.value = false // Reiniciar el estado
+        }
+
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFE0F2F7)), // Color de fondo verde suave,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = "Éxito",
+            tint = Color.Green,
+            modifier = Modifier.size(100.dp)
+        )
+        Text(
+            text = "¡Gracias por participar!",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .padding(bottom = 16.dp)
+
+
+        )
+    }
+}
+
+@Composable
+fun SeleccionRolScreen(navController: NavHostController) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background) // Usamos el color de fondo del tema
+    ) {
+        // Imagen de fondo
+        Image(
+            painter = painterResource(id = R.drawable.fondo),
+            contentDescription = "Imagen de fondo",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            colorFilter = ColorFilter.tint(
+                Color.Black.copy(alpha = 0.7f), // Oscurecemos la imagen con un filtro de color
+                blendMode = BlendMode.Darken
+            )
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp), //Padding consistente
+            verticalArrangement = Arrangement.SpaceAround,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ){
+                Text(
+                    text = "BIENVENIDO A:",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 44.sp,
+                    color = MaterialTheme.colorScheme.onBackground, // Color del texto sobre el fondo
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                AnimatedSoundWave()
+                /*
+                var angle by remember { mutableStateOf(0f) }
+                val infiniteTransition = rememberInfiniteTransition(label = "")
+                val angleAnim by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 2000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ), label = ""
+                )
+                angle = angleAnim
                 Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "Seleciona El Rol",
-                        modifier = Modifier,
-                        style = MaterialTheme.typography.titleLarge,
+                    // ...
+                ){
+                    Image(
+                        painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
+                        contentDescription = "Logo",
+                        modifier = Modifier
+                            .size(120.dp) // Establece el tamaño del logo
+                            .graphicsLayer {
+                                rotationZ = angle
+                            }
+
                     )
-                    if (showFirstViewButtons) {
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(5)
-                                }
-                                showFirstViewButtons = false
-                            },
-                            modifier = Modifier
-                                .padding(50.dp)
-                                .width(300.dp)
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.TipsAndUpdates,
-                                contentDescription = "Docentes",
-                                modifier = Modifier
-                                    .padding(end = 30.dp)
-                                    .size(34.dp),
-                                tint = Color.Black
-                            )
-                            Text(
-                                text = "Docentes",
-                                modifier = Modifier
-                                    .padding(end = 45.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontSize = 30.sp,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.scrim
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(1)
-                                }
-                                showFirstViewButtons = false
-                            },
-                            modifier = Modifier
-                                .padding(50.dp)
-                                .width(300.dp)
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.School,
-                                contentDescription = "Estudiantes",
-                                modifier = Modifier
-                                    .padding(end = 26.dp)
-                                    .size(34.dp),
-                                tint = Color.Black
-                            )
-                            Text(
-                                text = "Estudiantes",
-                                modifier = Modifier
-                                    .padding(end = 25.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontSize = 30.sp,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.scrim
-                            )
-                        }
-                    }
                 }
-
-
-            }
-
-            1 -> {
-                // Estudiantes - Parte 1
-                Estudiantes(viewModel) {
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                    }
+                */
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ){
+                    Text(
+                        text = "CASANARE STEREO NETWORK",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                    )
+                    Text(
+                        text = "DONDE LATE EL CORAZÓN DEL LLANO",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                    )
                 }
             }
-
-            2 -> {
-                // Estudiantes - Parte 2
-                Estudiantes1(viewModel) {
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                    }
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp), // Espaciado entre botones
+                horizontalAlignment = Alignment.CenterHorizontally
+            ){
+                Text(
+                    text = "Seleciona Rol",
+                    modifier = Modifier,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.surface
+                )
+                Button(
+                    onClick = { navController.navigate(PantallaFormulario.Docentes.ruta) },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TipsAndUpdates,
+                        contentDescription = "Docentes",
+                        modifier = Modifier
+                            .padding(end = 30.dp)
+                            .size(34.dp),
+                        tint = Color.Black
+                    )
+                    Text(
+                        text = "Docentes",
+                        modifier = Modifier
+                            .padding(end = 45.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 24.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.scrim
+                    )
                 }
-            }
-
-            3 -> {
-                // Estudiantes - Parte 3
-                Estudiantes2(viewModel) {
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                    }
+                Button(
+                    onClick = { navController.navigate(PantallaFormulario.Estudiantes.ruta)},
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.School,
+                        contentDescription = "Estudiantes",
+                        modifier = Modifier
+                            .padding(end = 26.dp)
+                            .size(34.dp),
+                        tint = Color.Black
+                    )
+                    Text(
+                        text = "Estudiantes",
+                        modifier = Modifier
+                            .padding(end = 25.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 30.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.scrim
+                    )
                 }
             }
 
-            4 -> {
-                // Estudiantes - Parte 4
-                Estudiantes3(viewModel, navController) {
-                    viewModel.guardarFormularioEnFirebase("estudiante") { success ->
-                        if (success as Boolean) {
-                            showSnackbar = true
-                            navController.navigate(Destinos.Pantalla16.ruta)
-                        } else {
-                            // Manejar error al guardar
-                        }
-                    }
-                    navController.navigate(Destinos.Pantalla16.ruta) // Navegar a VideosYoutubeView}
-                }
-            }
-//
-            5 -> {
-                // Docentes
-                Docentes(viewModel, navController) {
-                    viewModel.guardarFormularioEnFirebase("docente") { success ->
-                        if (success as Boolean) {
-                            showSnackbar = true
-                            navController.navigate(Destinos.Pantalla16.ruta)
-                        } else {
-                            // Manejar error al guardar
-                        }
-                    }
-                    navController.navigate(Destinos.Pantalla16.ruta) // Navegar a VideosYoutubeView
-                }
-            }
         }
     }
-
-
 }
 
 @Composable
-fun Estudiantes(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
+fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController) {
     var edad by remember { mutableStateOf("") }
     var institucion by remember { mutableStateOf("") }
     var municipio by remember { mutableStateOf("") }
@@ -240,45 +301,56 @@ fun Estudiantes(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
     var grado by remember { mutableStateOf("") }
     var expandedGenero by remember { mutableStateOf(false) } // Declaración de expandedGenero
     var expandedGrado by remember { mutableStateOf(false) } // Declaración de expandedGrado
-    Column{
-        CampoTexto(edad, { edad = it }, "Edad")
-        Spacer(modifier = Modifier.height(16.dp))
-        MenuDesplegable(
-            genero,
-            { genero = it },
-            "Género",
-            listOf("Masculino", "Femenino", "Otro"),
-            expandedGenero,
-            { expandedGenero = it }
-        )
-        Spacer(modifier = Modifier.padding(30.dp))
-        CampoTexto(institucion, { institucion = it }, "Institución Educativa")
-        Spacer(modifier = Modifier.height(16.dp))
-        MenuDesplegable(
-            grado,
-            { grado = it },
-            "Grado Escolar",
-            listOf("Sexto", "Séptimo", "Octavo", "Noveno", "Decimo", "Once"),
-            expandedGrado,
-            { expandedGrado = it }
-        )
-        Spacer(modifier = Modifier.padding(30.dp))
-        CampoTexto(municipio, { municipio = it }, "Municipio")
-        Spacer(modifier = Modifier.height(16.dp))
-        BotonSiguiente {
-            viewModel.agregarDatosFormulario("edad" to edad)
-            viewModel.agregarDatosFormulario("institucion" to institucion)
-            viewModel.agregarDatosFormulario("municipio" to municipio)
-            viewModel.agregarDatosFormulario("genero" to genero)
-            viewModel.agregarDatosFormulario("grado" to grado)
-            onSiguiente()
+
+
+    val camposLlenos = edad.isNotBlank() && institucion.isNotBlank() && municipio.isNotBlank() && genero.isNotBlank() && grado.isNotBlank()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item { CampoTexto(edad, { edad = it }, "Edad") }
+        item {
+            MenuDesplegable(
+                genero,
+                { genero = it },
+                "Género",
+                listOf("Masculino", "Femenino", "Otro"),
+                expandedGenero,
+                { expandedGenero = it },
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
+            )
+        }
+        item { CampoTexto(institucion, { institucion = it }, "Institución Educativa") }
+        item {
+            MenuDesplegable(
+                grado,
+                { grado = it },
+                "Grado Escolar",
+                listOf("Sexto", "Séptimo", "Octavo", "Noveno", "Decimo", "Once"),
+                expandedGrado,
+                { expandedGrado = it },
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
+            )
+        }
+        item { CampoTexto(municipio, { municipio = it }, "Municipio") }
+        item {
+            BotonSiguiente(enabled = camposLlenos) { // Habilitar botón solo si los campos están llenos
+                viewModel.agregarDatosFormulario("edad" to edad)
+                viewModel.agregarDatosFormulario("institucion" to institucion)
+                viewModel.agregarDatosFormulario("municipio" to municipio)
+                viewModel.agregarDatosFormulario("genero" to genero)
+                viewModel.agregarDatosFormulario("grado" to grado)
+                navController.navigate(PantallaFormulario.Estudiantes1.ruta)
+            }
         }
     }
 
 }
 
 @Composable
-fun Estudiantes1(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
+fun Estudiantes1(viewModel: FormularioViewModel, navController: NavHostController) {
     var impacto by remember { mutableStateOf("") }
     var promocion by remember { mutableStateOf("") }
     var asignaturas by remember { mutableStateOf("") }
@@ -342,13 +414,13 @@ fun Estudiantes1(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
             viewModel.agregarDatosFormulario("asignaturas" to asignaturas)
             viewModel.agregarDatosFormulario("participacion" to participacion)
             viewModel.agregarDatosFormulario("interes" to interes)
-            onSiguiente()
+            navController.navigate(PantallaFormulario.Estudiantes2.ruta) // Navega a la siguiente pantalla
         }
     }
 }
 
 @Composable
-fun Estudiantes2(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
+fun Estudiantes2(viewModel: FormularioViewModel, navController: NavHostController) {
     var habilidades by remember { mutableStateOf("") }
     var impacto by remember { mutableStateOf("") }
     var conoceComunicacion by remember { mutableStateOf("") }
@@ -400,19 +472,20 @@ fun Estudiantes2(viewModel: FormularioViewModel, onSiguiente: () -> Unit) {
         )
         Spacer(modifier = Modifier.padding(20.dp))
         BotonSiguiente {
+            Log.d("Docentes", "onClick BotonSiguiente")
             viewModel.agregarDatosFormulario("habilidades" to habilidades)
             viewModel.agregarDatosFormulario("impacto" to impacto)
             viewModel.agregarDatosFormulario("conoceComunicacion" to conoceComunicacion)
             viewModel.agregarDatosFormulario("interesaCrearContenido" to interesaCrearContenido)
             viewModel.agregarDatosFormulario("calidadInformacion" to calidadInformacion)
-            onSiguiente()
+            navController.navigate(PantallaFormulario.Estudiantes3.ruta) // Navega a la siguiente pantalla
         }
     }
 
 }
 
 @Composable
-fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostController, function: () -> Unit) {
+fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostController) {
     var conocimientoDivulgacion by remember { mutableStateOf("") }
     var mediosDigitales by remember { mutableStateOf("") }
     var sigueCientificos by remember { mutableStateOf("") }
@@ -420,7 +493,9 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
     var queEstudiar by remember { mutableStateOf("") }
     var expandedMedios by remember { mutableStateOf(false) }
     var expandedGustos by remember { mutableStateOf(false) }
-    var showSnackbar by remember { mutableStateOf(false) }
+    var success by remember { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Column {
         CampoTexto(
@@ -472,32 +547,38 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
             viewModel.agregarDatosFormulario("sigueCientificos" to sigueCientificos)
             viewModel.agregarDatosFormulario("interesaCarrera" to interesaCarrera)
             viewModel.agregarDatosFormulario("queEstudiar" to queEstudiar)
-            viewModel.guardarFormularioEnFirebase("estudiante") { success ->
-                if (success as Boolean) {
-                    showSnackbar = true
-                    navController.navigate(Destinos.Pantalla16.ruta)
-                } else {
-                    // Manejar error al guardar
+            viewModel.guardarFormularioEnFirebase("estudiante") { result ->
+                    success = result as? Boolean
+                    scope.launch {
+                        if (success == true) {// Lanzar una coroutine para mostrar el Snackbar
+                            navController.navigate(PantallaFormulario.PantallaFinal.ruta) // Navega a PantallaFinal
+                    }else {
+                            // Manejar error al guardar
+
+                    }
                 }
             }
            // navController.navigate(Destinos.Pantalla16.ruta)
         }
-        if (showSnackbar) {
-            Snackbar(
-                action = {
-                    TextButton(onClick = { showSnackbar = false }) {
-                        Text("OK")
-                    }
-                },
-                modifier = Modifier.padding(8.dp)
-            ) { Text("Datos guardados con éxito") }
+        // Mostrar Snackbar usando coroutines
+        LaunchedEffect(key1 = success) {
+            if (success == true) {
+                snackbarHostState.showSnackbar(
+                    message = "Datos guardados con éxito",
+                    actionLabel = "OK"
+                )
+            }else if (success == false) {
+                snackbarHostState.showSnackbar(
+                    message = "Error al guardar los datos. Inténtalo de nuevo."
+                )
+            }
         }
     }
 
 }
 
 @Composable
-fun Docentes(viewModel: FormularioViewModel, scaffoldState: ScaffoldState = rememberScaffoldState(), navController: NavHostController, function: () -> Unit) {
+fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
     var colegio by remember { mutableStateOf("") }
     var materia by remember { mutableStateOf("") }
     var municipio by remember { mutableStateOf("") }
@@ -520,9 +601,11 @@ fun Docentes(viewModel: FormularioViewModel, scaffoldState: ScaffoldState = reme
         "Ciencias del espacio", "Ciencias básicas (Física, química, biología, matemáticas)",
         "Ciencias de la salud", "Ciencias agropecuarias"
     )
-    var showSnackbar by remember { mutableStateOf(false) }
+    var success by remember { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Scaffold(){ innerPadding ->
+    Scaffold{ innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -579,8 +662,13 @@ fun Docentes(viewModel: FormularioViewModel, scaffoldState: ScaffoldState = reme
                 expandedDesarrollo,
                 { expandedDesarrollo = it }
             )
+            // Variable para controlar si el botón está habilitado
+            val isButtonEnabled = colegio.isNotBlank() && materia.isNotBlank() && municipio.isNotBlank() &&
+                    selectedOptionConsidera.isNotBlank() && selectedOptionConsidera1.isNotBlank() &&
+                    selectedOptionVocaciones.isNotBlank() && selectedOptionFormacion.isNotBlank() &&
+                    selectedOptionDesarrollo.isNotBlank()
             Spacer(modifier = Modifier.padding(20.dp))
-            BotonSiguiente {
+            BotonSiguiente(isEnabled = isButtonEnabled) {
                 viewModel.agregarDatosFormulario("colegio" to colegio)
                 viewModel.agregarDatosFormulario("materia" to materia)
                 viewModel.agregarDatosFormulario("municipio" to municipio)
@@ -589,25 +677,37 @@ fun Docentes(viewModel: FormularioViewModel, scaffoldState: ScaffoldState = reme
                 viewModel.agregarDatosFormulario("programaAcademico" to selectedOptionVocaciones)
                 viewModel.agregarDatosFormulario("cursosHerramientas" to selectedOptionFormacion)
                 viewModel.agregarDatosFormulario("areasDesarrollo" to selectedOptionDesarrollo)
-                viewModel.guardarFormularioEnFirebase("docente") { success ->
-                    if (success) {
-                        showSnackbar = true
-                        navController.navigate(Destinos.Pantalla16.ruta)
-                    } else {
-                        // Manejar error al guardar
-                    }
-                }
-                // Mostrar Snackbar usando coroutines
-                LaunchedEffect(key1 = showSnackbar) {
-                    if (showSnackbar) {
-                        scaffoldState.snackbarHostState.showSnackbar(
-                            message = "Datos guardados con éxito",
-                            actionLabel = "OK"
-                        )
-                        showSnackbar = false
-                    }
-                }
+                viewModel.guardarFormularioEnFirebase("docente") { result ->
+                        success =result as? Boolean
+                        scope.launch {
+                            withContext(Dispatchers.Main){
+                                if (success == true) {
+                                    navController.navigate(PantallaFormulario.PantallaFinal.ruta) // Navega a PantallaFinal
+                                }else {
+                                    // Manejar error al guardar
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Error al guardar los datos. Inténtalo de nuevo."
+                                        )
+                                    }
+                                }
+                            }
 
+                    }
+                }
+            }
+            // Mostrar Snackbar usando coroutines
+            LaunchedEffect(key1 = success) {
+                if (success == true) {
+                    snackbarHostState.showSnackbar(
+                        message = "Datos guardados con éxito",
+                        actionLabel = "OK"
+                    )
+                }else if (success == false) {
+                    snackbarHostState.showSnackbar(
+                        message = "Error al guardar los datos. Inténtalo de nuevo."
+                    )
+                }
             }
         }
     }
@@ -615,12 +715,24 @@ fun Docentes(viewModel: FormularioViewModel, scaffoldState: ScaffoldState = reme
 }
 
 @Composable
-fun CampoTexto(valor: String, onValueChange: (String) -> Unit, etiqueta: String) {
+fun CampoTexto(
+    valor: String,
+    onValueChange: (String) -> Unit,
+    etiqueta: String,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        //.size(width = Dp.Unspecified,
+            //height = 60.dp),
+    //textStyle: TextStyle = TextStyle(color = Color.Black)
+) {
     TextField(
         value = valor,
         onValueChange = onValueChange,
         label = { Text(etiqueta) },
-        modifier = Modifier.width(380.dp)
+        modifier = modifier,
+        enabled = enabled,
+        textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
     )
 }
 @Composable
@@ -630,9 +742,16 @@ fun MenuDesplegable(
     etiqueta: String,
     opciones: List<String>,
     expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit
+    onExpandedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .size(width = Dp.Unspecified, height = 60.dp),
+    textStyle: TextStyle = TextStyle(color = Color.Black)
 ) {
-    Box {
+    Column( // <-- Cambiar Box por Column
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally // <-- Añadir centrado horizontal
+    ){
         TextField(
             value = valor,
             onValueChange = onValueChange,
@@ -646,11 +765,14 @@ fun MenuDesplegable(
                 }
             },
             readOnly = true,
-            modifier = Modifier.width(380.dp)
+            modifier = Modifier
+                .fillMaxWidth(),
+            textStyle = textStyle
         )
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
+            onDismissRequest = { onExpandedChange(false) },
+            modifier = Modifier.fillMaxWidth()
         ) {
             opciones.forEach { opcion ->
                 DropdownMenuItem(onClick = {
@@ -664,10 +786,11 @@ fun MenuDesplegable(
     }
 }
 @Composable
-fun BotonSiguiente(onClick:  () -> Unit) {
+fun BotonSiguiente(isEnabled: Boolean = true, enabled: Boolean = true, onClick:  () -> Unit) {
     Button(
         onClick = onClick,
-        modifier = Modifier.padding(50.dp)
+        enabled = isEnabled, // Habilitar/deshabilitar el botón
+        modifier = Modifier.padding(16.dp)
             .width(300.dp)
             .height(50.dp),
         colors = ButtonDefaults.buttonColors(
@@ -678,14 +801,22 @@ fun BotonSiguiente(onClick:  () -> Unit) {
         Text(
             text = "Siguiente",
             style = MaterialTheme.typography.bodyMedium,
-            fontSize = 30.sp
+            fontSize = 24.sp
         )
     }
 }
-
+sealed class PantallaFormulario(val ruta: String) {
+    data object SeleccionRol : PantallaFormulario("seleccion_rol")
+    data object Estudiantes : PantallaFormulario("estudiantes")
+    data object Estudiantes1: PantallaFormulario("estudiantes_1")
+    data object Estudiantes2 : PantallaFormulario("estudiantes_2")
+    data object Estudiantes3 : PantallaFormulario("estudiantes_3")
+    data object Docentes : PantallaFormulario("docentes")
+    data object PantallaFinal : PantallaFormulario("pantalla_final")
+}
 
 @Preview(showBackground = true)
 @Composable
 fun CasanareStereoTheme() {
-    FormularioScreen(viewModel = FormularioViewModel(), navController = rememberNavController())
+    SeleccionRolScreen(navController = rememberNavController())
 }

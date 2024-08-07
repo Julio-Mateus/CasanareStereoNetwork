@@ -141,7 +141,7 @@ fun Home(navController: NavHostController){
        )
        }
    ){innerPadding -> // Añade innerPadding
-       NavigationHost( innerPadding = innerPadding) // Llama a NavigationHost
+       NavigationHost(navController,innerPadding) // Llama a NavigationHost
 
    }
 

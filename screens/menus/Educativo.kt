@@ -1,78 +1,154 @@
 package com.jcmateus.casanarestereo.screens.menus
 
+import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-//noinspection UsingMaterialAndMaterial3Libraries
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Card
-//noinspection UsingMaterialAndMaterial3Libraries
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.SimpleExoPlayer
-import com.google.android.exoplayer2.ui.StyledPlayerView
-
-
+import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 
 @Composable
 fun VideosYoutubeView(navController: NavHostController) {
     val videoUrls = listOf(
-        "https://www.youtube.com/watch?v=F1sHuSBUECs&list=RD0nKjn2FORAo&index=3",
-        "https://www.youtube.com/watch?v=1J7n1pTzRwk&list=RD0nKjn2FORAo&index=2"
-        // ... más URLs de videos
+        "https://youtu.be/yY9ljVUh2uE",
+        "https://youtu.be/znbFx_oI2DA",
+        "https://youtu.be/C7cs3O42Sy8",
+        "https://youtu.be/ZVgEW4s6MN4"
     )
-    VideoGrid(videoUrls = videoUrls, navController = navController)
+    val videoNames = listOf(
+        "Proyecto Casanare 1",
+        "video 2 Casanare",
+        "video 3",
+        "video 4 Garza"
+    )
+    var userLoggedIn by remember { mutableStateOf(false)} // Variable de estado para el inicio de sesión
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                if (userLoggedIn) {
+                    navController.navigate(Destinos.HomeCasanareVista.ruta) // Navegar a home si el usuario ha iniciado sesión
+                } else {
+                    navController.navigate(Destinos.CasanareLoginScreen.ruta) // Navegar a la creación de cuenta si no
+                }
+            }) {
+                Icon(imageVector = Icons.Filled.Person, contentDescription = "Account")
+            }
+        }) { paddingValues ->
+        // Contenido de la pantalla (VideoGrid) con paddingValues
+        VideoGrid(
+            videoUrls = videoUrls,
+            videoNames = videoNames,
+            navController = navController,
+            modifier = Modifier.padding(paddingValues) // Aplicar padding
+        )
+    }
 }
+
 @Composable
-fun VideoGrid(videoUrls: List<String>, navController: NavHostController) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+fun VideoGrid(videoUrls: List<String>, videoNames: List<String>, navController: NavHostController, modifier: Modifier = Modifier) {
+    LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        items(videoUrls) { videoUrl ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                elevation = 2.dp
-            ) {
-                VideoPlayer(videoUrl = videoUrl, navController = navController)
+        items(videoUrls.zip(videoNames)) {
+                (videoUrl, videoName) ->
+            val videoId = extractVideoId(videoUrl)
+            if (videoId != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    elevation = 2.dp
+                ) {
+                    Column {
+                        YouTubePlayer(videoId = videoId)
+                        Text(videoName)
+                    }
+                }
+            } else {
+                Text(text = "Invalid video URL")
             }
         }
     }
 }
 
 @Composable
-fun VideoPlayer(videoUrl: String, navController: NavHostController) {
+fun YouTubePlayer(videoId: String) {
     val context = LocalContext.current
-    val exoPlayer = remember {
-        SimpleExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(videoUrl)
-            setMediaItem(mediaItem)
-            prepare()
-        }
-    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var playerState by remember { mutableStateOf<PlayerState>(PlayerState.LOADING) }
 
-    DisposableEffect(
-        AndroidView(
-            factory = {
-                StyledPlayerView(context).apply {
-                    player = exoPlayer
-                }
-            }, modifier = Modifier.fillMaxSize()
-        )
-    ) {
-        onDispose { exoPlayer.release() }
+    AndroidView(
+        factory = { ctx ->
+            YouTubePlayerView(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+
+                lifecycleOwner.lifecycle.addObserver(LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_DESTROY) {
+                        release()
+                    }
+                })
+
+                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
+                    override fun onReady(youTubePlayer: YouTubePlayer) {
+                        youTubePlayer.cueVideo(videoId, 0f) // No reproducir automáticamente
+                        playerState = PlayerState.READY
+                    }
+
+                    override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
+                        playerState = PlayerState.ERROR
+                    }
+                })
+            }
+        },
+        modifier = Modifier
+            .fillMaxSize()
+            .aspectRatio(16f / 9f) // Mantener relación de aspecto
+    )
+
+    when (playerState) {
+        PlayerState.LOADING -> CircularProgressIndicator() // Mostrar un indicador de carga
+        PlayerState.ERROR -> Text("Error al cargar el video") // Mostrar un mensaje de error
+        else -> {}
     }
+}
+enum class PlayerState { LOADING, READY, ERROR }
+
+// Función para extraer el ID del video de YouTube
+fun extractVideoId(youtubeUrl: String): String? {
+    val regex =
+        "(?<=watch\\?v=|/videos/|embed\\/|youtu.be\\/|\\/v\\/|\\/e\\/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%2F|youtu.be%2F|%2Fv%2F)[^#\\&\\?\\n]*".toRegex()
+    val matchResult = regex.find(youtubeUrl)
+    return matchResult?.value
 }
 
 
