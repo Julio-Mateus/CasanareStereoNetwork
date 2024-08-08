@@ -1,8 +1,12 @@
 package com.jcmateus.casanarestereo.screens.formulario
 
 //noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//import androidx.compose.material.SnackbarHostState
+//noinspection UsingMaterialAndMaterial3Libraries
+import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,18 +23,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.DropdownMenuItem
-//noinspection UsingMaterialAndMaterial3Libraries
-//import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.CheckCircle
@@ -39,18 +38,19 @@ import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,7 +67,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -305,7 +304,7 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
     var grado by remember { mutableStateOf("") }
     var expandedGenero by remember { mutableStateOf(false) }
     var expandedGrado by remember { mutableStateOf(false) }
-    var rotationAngle by remember { mutableStateOf(180f) }
+    var rotationAngle by remember { mutableFloatStateOf(180f) }
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -367,7 +366,7 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
                     }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retroceder"
                 )
             }
@@ -390,7 +389,7 @@ fun Estudiantes1(viewModel: FormularioViewModel, navController: NavHostControlle
     var expandedPromocion by remember { mutableStateOf(false) } // Declaración de expandedGrado
     var expandedAsignaturas by remember { mutableStateOf(false) } // Declaración de expandedGenero
     var expandedParticipacion by remember { mutableStateOf(false) } // Declaración de expandedGrado
-    var rotationAngle by remember { mutableStateOf(180f) }// Ángulo de rotación inicial
+    var rotationAngle by remember { mutableFloatStateOf(180f) }// Ángulo de rotación inicial
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()){
@@ -469,7 +468,7 @@ fun Estudiantes1(viewModel: FormularioViewModel, navController: NavHostControlle
                     }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack, // Icono de flecha hacia atrás
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack, // Icono de flecha hacia atrás
                     contentDescription = "Retroceder"
                 )
             }
@@ -491,7 +490,7 @@ fun Estudiantes2(viewModel: FormularioViewModel, navController: NavHostControlle
     var expandedHabilidades by remember { mutableStateOf(false) }
     var expandedVideo3 by remember { mutableStateOf(false) }
     var expandedImVideo3 by remember { mutableStateOf(false) }
-    var rotationAngle by remember { mutableStateOf(180f) }
+    var rotationAngle by remember { mutableFloatStateOf(180f) }
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -567,7 +566,7 @@ fun Estudiantes2(viewModel: FormularioViewModel, navController: NavHostControlle
                     }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retroceder"
                 )
             }
@@ -591,7 +590,7 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
     var success by remember { mutableStateOf<Boolean?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var rotationAngle by remember { mutableStateOf(180f) }
+    var rotationAngle by remember {mutableFloatStateOf(180f) }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -693,7 +692,7 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
                     }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retroceder",
                     tint = MaterialTheme.colorScheme.background
                 )
@@ -733,7 +732,7 @@ fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
     var success by remember { mutableStateOf<Boolean?>(null) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    var rotationAngle by remember { mutableStateOf(180f) }
+    var rotationAngle by remember { mutableFloatStateOf(180f) }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }){ innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -854,7 +853,7 @@ fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
                     }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Retroceder",
                     tint = MaterialTheme.colorScheme.surface
                 )
@@ -867,14 +866,12 @@ fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CampoTexto(
     valor: String,
     onValueChange: (String) -> Unit,
     etiqueta: String,
-    modifier: Modifier = Modifier
-        .fillMaxWidth()
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     TextField(
         value = valor,
@@ -886,14 +883,15 @@ fun CampoTexto(
             fontSize= 18.sp
         ),
         shape = RoundedCornerShape(4.dp), // Agrega bordes redondeados
-        colors = TextFieldDefaults.textFieldColors(
-            containerColor = MaterialTheme.colorScheme.surface, // Color de fondo del TextField
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface, // Color de fondo del TextField
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
             focusedIndicatorColor = Color.Transparent, // Oculta el indicador cuando está enfocado
-            unfocusedIndicatorColor = Color.Transparent // Oculta el indicador cuando no está enfocado
+            unfocusedIndicatorColor = Color.Transparent, // Oculta el indicador cuando no está enfocado
         )
     )
 }
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuDesplegable(
     valor: String,
@@ -927,10 +925,12 @@ fun MenuDesplegable(
                 .fillMaxWidth(),
             textStyle = textStyle.copy(fontSize = 18.sp),
             shape = RoundedCornerShape(4.dp), // Agrega bordes redondeados
-            colors = TextFieldDefaults.textFieldColors(
-                containerColor = MaterialTheme.colorScheme.surface, // Usa containerColor en lugar de backgroundColor
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface, // Usa containerColor en lugar de backgroundColor
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface,
                 focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                unfocusedIndicatorColor = Color.Transparent,
             )
         )
         Spacer(modifier = Modifier.height(8.dp))

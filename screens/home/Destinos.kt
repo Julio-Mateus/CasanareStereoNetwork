@@ -27,7 +27,6 @@ sealed class Destinos(
     data object Pantalla17: Destinos(null, "Pantalla 17", "pantalla17")
     //Inicio
     data object PantallaPresentacion : Destinos( icon = null, title = "Pantalla Presentacion", ruta = "PantallaPresentacion")
-    data object InicioCasanareVista : Destinos( icon = null, title = "Inicio", ruta = "InicioCasanareVista")
     data object HomeCasanareVista : Destinos( icon = null, title = "Home", ruta = "HomeCasanareVista")
     data object CasanareLoginScreen : Destinos( icon = null, title = "Login", ruta = "CasanareLoginScreen")
 }

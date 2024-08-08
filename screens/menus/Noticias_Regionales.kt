@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun Noticias_Regionales(){
-    Column() {
+    Column {
         Text("Noticias_Regionales")
     }
 }

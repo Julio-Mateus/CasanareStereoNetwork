@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun Se_Le_Tiene(){
-    Column() {
+    Column {
         Text("Se Le Tiene")
     }
 }

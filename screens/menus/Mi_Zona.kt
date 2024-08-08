@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun Mi_Zona(){
-    Column() {
+    Column {
         Text("Mi Zona")
     }
 }

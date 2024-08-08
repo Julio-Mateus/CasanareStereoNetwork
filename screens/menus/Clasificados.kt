@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun Clasificados(){
-    Column() {
+    Column {
         Text("Clasificados")
     }
 }

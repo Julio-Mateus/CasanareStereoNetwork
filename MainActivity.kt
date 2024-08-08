@@ -1,5 +1,8 @@
 package com.jcmateus.casanarestereo
 
+//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
+//import com.jcmateus.casanarestereo.navigation.AuthenticationNavHost
+//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,14 +12,13 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,9 +26,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -35,33 +34,26 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelStore
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
-//import com.jcmateus.casanarestereo.navigation.AuthenticationNavHost
-//import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+import kotlin.math.sin
 
 class MainActivity : ComponentActivity() {
     // Constructor vacío
@@ -238,7 +230,7 @@ fun SoundWaveIcon(modifier: Modifier = Modifier, amplitude: Float, color: Color)
             // Crear múltiples líneas para simular una onda
             for (i in 0..20) {
                 val x = offset + i * lineWidth
-                val y = centerY + (amplitude * 1.5f * Math.sin(x.toDouble())).toFloat()
+                val y = centerY + (amplitude * 1.5f * sin(x.toDouble())).toFloat()
                 moveTo(x, centerY)
                 lineTo(x, y)
             }
