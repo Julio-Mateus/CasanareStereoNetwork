@@ -3,9 +3,11 @@ package com.jcmateus.casanarestereo.screens.menus
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
@@ -77,9 +80,13 @@ fun VideosYoutubeView(navController: NavHostController) {
 @Composable
 fun VideoGrid(videoUrls: List<String>, videoNames: List<String>, navController: NavHostController, modifier: Modifier = Modifier) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
-        items(videoUrls.zip(videoNames)) {
+        items(
+            items = videoUrls.zip(videoNames),
+            key = { (videoUrl, _) -> videoUrl },
+            contentType = { (_, _) -> "video" }
+        ) {
                 (videoUrl, videoName) ->
             val videoId = extractVideoId(videoUrl)
             if (videoId != null) {
@@ -106,38 +113,47 @@ fun YouTubePlayer(videoId: String) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var playerState by remember { mutableStateOf<PlayerState>(PlayerState.LOADING) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val youTubePlayerView = remember { YouTubePlayerView(context) }
 
     AndroidView(
-        factory = { ctx ->
-            YouTubePlayerView(ctx).apply {
-                layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-
-                lifecycleOwner.lifecycle.addObserver(LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_DESTROY) {
-                        release()
-                    }
-                })
-
-                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
-                    override fun onReady(youTubePlayer: YouTubePlayer) {
-                        youTubePlayer.cueVideo(videoId, 0f) // No reproducir automáticamente
-                        playerState = PlayerState.READY
-                    }
-
-                    override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
-                        playerState = PlayerState.ERROR
-                    }
-                })
-            }
-        },
+        factory = { youTubePlayerView },
         modifier = Modifier
-            .fillMaxSize()
-            .aspectRatio(16f / 9f) // Mantener relación de aspecto
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f),
+        update = { view ->
+            view.layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+
+            lifecycleOwner.lifecycle.addObserver(LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_DESTROY) {
+                    view.release()
+                }
+            })
+
+            view.addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
+                override fun onReady(youTubePlayer: YouTubePlayer) {
+                    youTubePlayer.cueVideo(videoId, 0f)
+                    playerState = PlayerState.READY
+                }
+                override fun onError(
+                    youTubePlayer: YouTubePlayer,
+                    error: PlayerConstants.PlayerError
+                ) {
+                    playerState = PlayerState.ERROR
+                    errorMessage = when (error) {
+                        PlayerConstants.PlayerError.INVALID_PARAMETER_IN_REQUEST -> "Parámetro inválido en la solicitud"
+                        PlayerConstants.PlayerError.VIDEO_NOT_FOUND -> "Video no encontrado"
+                        else -> "Error desconocido"
+                    }
+                }
+            })
+        }
     )
 
     when (playerState) {
-        PlayerState.LOADING -> CircularProgressIndicator() // Mostrar un indicador de carga
-        PlayerState.ERROR -> Text("Error al cargar el video") // Mostrar un mensaje de error
+        PlayerState.LOADING -> CircularProgressIndicator()
+        PlayerState.ERROR -> errorMessage?.let { Text("Error: $it") }
         else -> {}
     }
 }
@@ -145,10 +161,8 @@ enum class PlayerState { LOADING, READY, ERROR }
 
 // Función para extraer el ID del video de YouTube
 fun extractVideoId(youtubeUrl: String): String? {
-    val regex =
-        "(?<=watch\\?v=|/videos/|embed\\/|youtu.be\\/|\\/v\\/|\\/e\\/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%2F|youtu.be%2F|%2Fv%2F)[^#\\&\\?\\n]*".toRegex()
-    val matchResult = regex.find(youtubeUrl)
-    return matchResult?.value
+    val regex = "(?<=v=|youtu.be/|embed/)[^#&?]*".toRegex()
+    return regex.find(youtubeUrl)?.value
 }
 
 

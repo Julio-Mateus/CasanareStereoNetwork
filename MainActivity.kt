@@ -65,19 +65,15 @@ import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 
 class MainActivity : ComponentActivity() {
     // Constructor vacío
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val navController= (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
-            CasanareStereoTheme{
-                val navController = rememberNavController() // Crea un NavHostController
-                val viewModelStore = remember { ViewModelStore() }
-                navController.setViewModelStore(viewModelStore)
+            CasanareStereoTheme {
                 Scaffold { innerPadding ->
-                    NavigationHost(navController, innerPadding) // Pasa el NavHostController
+                    NavigationHost(navController, innerPadding)
                 }
-        }
-
+            }
         }
     }
 }
@@ -204,7 +200,7 @@ fun PantallaPresentacion(navController: NavController) {
             ) {
                 Text(
                     text = "¿No tienes cuenta?",
-                    //color = MaterialTheme.colorScheme.inverseOnSurface,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
                     "Registrate",

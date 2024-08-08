@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -21,6 +22,9 @@ import com.jcmateus.casanarestereo.model.User
 import kotlinx.coroutines.Dispatchers
 //import kotlinx.coroutines.DefaultExecutor.delay
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -32,7 +36,10 @@ class LoginScreenViewModel: ViewModel() {
     val errorMessage: LiveData<String?> = _errorMessage
     val loading: LiveData<Boolean> = _loading
     private val _successMessage = MutableLiveData<String?>(null)
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
     val successMessage: LiveData<String?> = _successMessage
+    var isCreateUser = false
     private var _passwordVisible = mutableStateOf(false)
     val passwordVisible: State<Boolean> = _passwordVisible
 
@@ -123,17 +130,27 @@ class LoginScreenViewModel: ViewModel() {
                         }
                     }
 
-            } catch (ex: Exception){
+            } catch (e: FirebaseAuthInvalidCredentialsException){
                 _loading.value = false // Ocultar indicador de progreso
-                Log.d("CasanareStereo", "signInWithEmailAndPassword : ${ex.message}"
+                Log.d("CasanareStereo", "signInWithEmailAndPassword : ${e.message}"
                 )
-                _errorMessage.value =  "Error al iniciar sesión"
+                _errorMessage.value = when (e.errorCode) {
+                    "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
+                    "ERROR_USER_NOT_FOUND" -> "Usuario no encontrado"
+                    "ERROR_INVALID_EMAIL" -> "Correo electrónico inválido"
+                    else -> "Credenciales incorrectas"
+                }
+            }catch (e: FirebaseAuthInvalidUserException) {
+                // Manejar usuario inválido
+                _errorMessage.value = "Usuario no encontrado o deshabilitado"
             }
-        }else {
-            _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
         }
-
+        isCreateUser = false
+        _isLoggedIn.value = true // Actualiza el estado de inicio de sesión
         }
+    fun clearIsLoggedIn() {
+        _isLoggedIn.value = false
+    }
     fun createUserWithEmailAndPassword(
         email: String,
         password: String,

@@ -3,15 +3,11 @@ package com.jcmateus.casanarestereo.navigation
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.savedinstancestate.rememberSavedInstanceState
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.screens.formulario.Docentes
 import com.jcmateus.casanarestereo.screens.formulario.Estudiantes
@@ -38,7 +34,7 @@ import com.jcmateus.casanarestereo.screens.menus.Programacion
 import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
 import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
-import com.jcmateus.casanarestereo.screens.login.InicioCasanareVista
+//import com.jcmateus.casanarestereo.InicioCasanareVista
 //import com.jcmateus.casanarestereo.screens.menus.Educativo
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
@@ -55,9 +51,6 @@ fun NavigationHost(navController: NavHostController, innerPadding: PaddingValues
         // Inicio
         composable(Destinos.PantallaPresentacion.ruta){
             PantallaPresentacion(navController = navController)
-        }
-        composable(Destinos.InicioCasanareVista.ruta){
-            InicioCasanareVista(navController = navController)
         }
         composable(Destinos.HomeCasanareVista.ruta){
             Home(navController = navController)

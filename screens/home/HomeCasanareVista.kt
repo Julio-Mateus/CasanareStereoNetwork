@@ -66,6 +66,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import kotlinx.coroutines.CoroutineScope
@@ -78,13 +79,13 @@ import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 class HomeActivity() : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme(){
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
                     Home(navController)
                 }
             }

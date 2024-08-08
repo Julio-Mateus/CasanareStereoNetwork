@@ -55,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -93,6 +94,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.jcmateus.casanarestereo.AnimatedSoundWave
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.VistasCasanare
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
@@ -104,10 +106,10 @@ import kotlinx.coroutines.launch
 class CasanareLoginActivity() : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //enableEdgeToEdge()
+        val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme {
-                CasanareLoginScreen(navController = rememberNavController())
+                CasanareLoginScreen(navController = navController)
             }
         }
     }
@@ -124,6 +126,7 @@ fun CasanareLoginScreen(
     var CheckNotificaciones by remember { mutableStateOf(false) }
     var CheckTerminos by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() } // Crear SnackbarHostState
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState() // Observa el estado de inicio de sesión
     val successMessage by viewModel.successMessage.observeAsState(initial = null)
     //True = Login; False = Create
     val showLoginForm = rememberSaveable {
@@ -133,7 +136,7 @@ fun CasanareLoginScreen(
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
-        ) {
+    ) {
         val task = getSignedInAccountFromIntent(it.data)
         try{
             val account = task.getResult(ApiException::class.java)
@@ -143,7 +146,7 @@ fun CasanareLoginScreen(
             }
         }
         catch(ex: Exception){
-                Log.d("Casanare", "LoginScreen: ${ex.message}")
+            Log.d("Casanare", "LoginScreen: ${ex.message}")
         }
 
     }
@@ -163,6 +166,16 @@ fun CasanareLoginScreen(
             ShowSnackbar(snackbarHostState, successMessage!!) {
                 viewModel.clearSuccessMessage() // Limpiar el mensaje de éxito después de mostrarlo
             }
+        }
+    }
+    LaunchedEffect(key1 = isLoggedIn) {
+        if (isLoggedIn) {
+            if (viewModel.isCreateUser) {
+                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+            } else {
+                navController.navigate(Destinos.HomeCasanareVista.ruta)
+            }
+            viewModel.clearIsLoggedIn()
         }
     }
     Surface(
@@ -281,7 +294,7 @@ fun CasanareLoginScreen(
                     CheckNotificaciones = CheckNotificaciones,
                     CheckTerminos = CheckTerminos
 
-                    )
+                )
                 { email, password ->
                     Log.d("Casanare", "Iniciando sesión con $email y $password")
                     viewModel.signInWithEmailAndPassword(email, password, CheckNotificaciones, CheckTerminos) {
@@ -323,7 +336,7 @@ fun CasanareLoginScreen(
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Acepto Notificaciones")
+                Text("Acepto Notificaciones", color = MaterialTheme.colorScheme.onPrimary)
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -344,6 +357,7 @@ fun CasanareLoginScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = annotatedString,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.clickable {
                         // Abrir la página de términos y condiciones
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("URL_DE_TERMINOS_Y_CONDICIONES"))
