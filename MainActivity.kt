@@ -230,7 +230,7 @@ fun SoundWaveIcon(modifier: Modifier = Modifier, amplitude: Float, color: Color)
             // Crear múltiples líneas para simular una onda
             for (i in 0..20) {
                 val x = offset + i * lineWidth
-                val y = centerY + (amplitude * 1.5f * sin(x.toDouble())).toFloat()
+                val y = centerY + (amplitude * 1.8f * sin(x.toDouble())).toFloat()
                 moveTo(x, centerY)
                 lineTo(x, y)
             }
@@ -238,7 +238,7 @@ fun SoundWaveIcon(modifier: Modifier = Modifier, amplitude: Float, color: Color)
         drawPath(
             path = path,
             color = color,
-            style = Stroke(width = 12f)// Trazo más grueso
+            style = Stroke(width = 20f)// Trazo más grueso
         )
     }
 }
