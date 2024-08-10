@@ -1,6 +1,5 @@
 package com.jcmateus.casanarestereo.screens.formulario
 
-import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -10,8 +9,7 @@ import kotlinx.coroutines.launch
 
 class FormularioViewModel : ViewModel() {
     private val _formularioData = mutableStateListOf<Pair<String, Any>>()
-    val formularioData: List<Pair<String, Any>> = _formularioData
-    public val _formularioGuardado = mutableStateOf(false)
+    val _formularioGuardado = mutableStateOf(false)
     val formularioGuardado = _formularioGuardado
 
     fun guardarFormularioEnFirebase(tipoFormulario: String, param: (Any) -> Unit) {
@@ -38,9 +36,6 @@ class FormularioViewModel : ViewModel() {
 
     // Otras funciones auxiliares que podrías necesitar
 
-    fun limpiarFormulario() {
-        _formularioData.clear()
-    }
     fun agregarDatosFormulario(datos: Pair<String, String>) {
         _formularioData.add(datos)
     }

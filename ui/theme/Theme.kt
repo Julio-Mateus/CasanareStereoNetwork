@@ -20,7 +20,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = Color(0xFFFFD600),
     tertiary = Color.White,
     onPrimary = Color.White, // Acento (blanco sobre rojo oscuro)
-    background = Color(0xFF212121), // Gris oscuro
+    background = Color.White,
     surface = Color(0xFF000000), // Negro
     onBackground  = Color(0xFFEEEEEE)
 )
@@ -30,8 +30,9 @@ private val LightColorScheme = lightColorScheme(
     secondary = Color(0xFFFFD600), // Dorado
     onPrimary = Color.White, // Acento (blanco sobre rojo oscuro)
     onSecondary = Color(0xFF000000), // Negro sobre dorado
-    background = Color.White,
+    background = Color(0xFF333333),// Gris oscuro
     surface = Color(0xFFEEEEEE),// Gris claro
+    onSurface = Color(0xFF000000),// Negro sobre gris claro
     onBackground  = Color(0xFFEEEEEE)
 
 )

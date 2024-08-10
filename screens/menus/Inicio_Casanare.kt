@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun Inicio(){
-    Column() {
+    Column {
         Text("Inicio")
     }
 }

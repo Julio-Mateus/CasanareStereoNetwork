@@ -1,11 +1,11 @@
 //@file:Suppress("UNREACHABLE_CODE")
 
+@file:Suppress("DEPRECATION")
+
 package com.jcmateus.casanarestereo.screens.login
 
+//import kotlinx.coroutines.DefaultExecutor.delay
 import android.util.Log
-import android.widget.Toast
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -13,17 +13,18 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.jcmateus.casanarestereo.model.User
 import kotlinx.coroutines.Dispatchers
-//import kotlinx.coroutines.DefaultExecutor.delay
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 class LoginScreenViewModel: ViewModel() {
     private val auth: FirebaseAuth = Firebase.auth
@@ -32,13 +33,11 @@ class LoginScreenViewModel: ViewModel() {
     val errorMessage: LiveData<String?> = _errorMessage
     val loading: LiveData<Boolean> = _loading
     private val _successMessage = MutableLiveData<String?>(null)
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
     val successMessage: LiveData<String?> = _successMessage
-    private var _passwordVisible = mutableStateOf(false)
-    val passwordVisible: State<Boolean> = _passwordVisible
+    var isCreateUser = false
 
-
-    fun updatePasswordVisible(isVisible: Boolean) {_passwordVisible.value = isVisible
-    }
 
     fun clearErrorMessage() {
         _errorMessage.value = null
@@ -84,7 +83,7 @@ class LoginScreenViewModel: ViewModel() {
         if(valido){
             try {
                 _loading.value = true
-                auth.signInWithEmailAndPassword(email, password, )
+                auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         _loading.value = false
                         if (task.isSuccessful) {
@@ -123,17 +122,27 @@ class LoginScreenViewModel: ViewModel() {
                         }
                     }
 
-            } catch (ex: Exception){
+            } catch (e: FirebaseAuthInvalidCredentialsException){
                 _loading.value = false // Ocultar indicador de progreso
-                Log.d("CasanareStereo", "signInWithEmailAndPassword : ${ex.message}"
+                Log.d("CasanareStereo", "signInWithEmailAndPassword : ${e.message}"
                 )
-                _errorMessage.value =  "Error al iniciar sesión"
+                _errorMessage.value = when (e.errorCode) {
+                    "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
+                    "ERROR_USER_NOT_FOUND" -> "Usuario no encontrado"
+                    "ERROR_INVALID_EMAIL" -> "Correo electrónico inválido"
+                    else -> "Credenciales incorrectas"
+                }
+            }catch (e: FirebaseAuthInvalidUserException) {
+                // Manejar usuario inválido
+                _errorMessage.value = "Usuario no encontrado o deshabilitado"
             }
-        }else {
-            _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
         }
-
+        isCreateUser = false
+        _isLoggedIn.value = true // Actualiza el estado de inicio de sesión
         }
+    fun clearIsLoggedIn() {
+        _isLoggedIn.value = false
+    }
     fun createUserWithEmailAndPassword(
         email: String,
         password: String,
@@ -225,7 +234,7 @@ class LoginScreenViewModel: ViewModel() {
 
         //Usando Data Class
         val user = User(
-            userId = userId.toString(),
+            userId = userId,
             displayName = displayName.toString(),
             avatarUrl = "",
             quote = "Hola que tal",

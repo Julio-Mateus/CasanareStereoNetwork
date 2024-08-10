@@ -1,5 +1,19 @@
 package com.jcmateus.casanarestereo.screens.home
 
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//import androidx.compose.material.ExperimentalMaterial3Api
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
+//noinspection UsingMaterialAndMaterial3Libraries
 import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,18 +40,13 @@ import androidx.compose.material.BottomNavigation
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.BottomNavigationItem
 //noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.ScaffoldState
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-//import androidx.compose.material.ExperimentalMaterial3Api
-//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Icon
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.IconButton
-import androidx.compose.material3.MaterialTheme
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Scaffold
+//noinspection UsingMaterialAndMaterial3Libraries
+import androidx.compose.material.ScaffoldState
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Surface
 //noinspection UsingMaterialAndMaterial3Libraries
@@ -46,14 +55,13 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,25 +74,27 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.NavigationHost
+import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
 
 
-class HomeActivity() : ComponentActivity() {
+class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
-            CasanareStereoTheme(){
+            CasanareStereoTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
                     Home(navController)
                 }
             }
@@ -204,8 +214,6 @@ fun  TopBar(
 
 ){
     val currentRoute = currentRoute(navController = navController)
-    var showEducacion by remember { mutableStateOf(false) }
-
 
 
     var miTitulo = "Menú"
@@ -218,7 +226,7 @@ fun  TopBar(
         if (currentRoute == item1.ruta2) personaleMenu = item1.title2
     }*/
 
-    val currentRoute1 = currentRoute(navController = navController)
+    currentRoute(navController = navController)
 
     TopAppBar(
         backgroundColor = Color(0xFF000000).copy(alpha = 0.5f),
