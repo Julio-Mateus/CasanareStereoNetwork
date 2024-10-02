@@ -3,22 +3,18 @@ package com.jcmateus.casanarestereo
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 //import com.jcmateus.casanarestereo.navigation.AuthenticationNavHost
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,49 +26,73 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.ViewModelStore
+import androidx.navigation.NavHostController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
-import kotlin.math.sin
 
 class MainActivity : ComponentActivity() {
-    // Constructor vacío
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val navController= (application as HomeApplication).navController // Obtener navController de la aplicación
+        val navController = (application as HomeApplication).navController
         setContent {
             CasanareStereoTheme {
-                Scaffold { innerPadding ->
-                    NavigationHost(navController, innerPadding)
-                }
+                navController.setViewModelStore(ViewModelStore())
+                MainScreen(navController)
+                //NavigationHost( navController, PaddingValues())
+                //PantallaPresentacion(navController)
             }
         }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun PantallaPresentacion(navController: NavController) {
+fun MainScreen(navController: NavHostController) {
+    val loginViewModel =
+        createLoginViewModel(LocalContext.current.applicationContext as HomeApplication)
+    CasanareStereoTheme {
+        NavigationHost(navController, PaddingValues(), loginViewModel)
+    }
+}
 
+@Composable
+fun PantallaPresentacion(navController: NavHostController) {
+    var user by remember { mutableStateOf<FirebaseUser?>(null) }
+    val authListener = FirebaseAuth.AuthStateListener { auth ->
+        user = auth.currentUser
+    }
+    DisposableEffect(authListener) {
+        FirebaseAuth.getInstance().addAuthStateListener(authListener)
+        onDispose {
+            FirebaseAuth.getInstance().removeAuthStateListener(authListener)
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -99,39 +119,18 @@ fun PantallaPresentacion(navController: NavController) {
             Text(
                 text = "BIENVENIDO A:",
                 style = MaterialTheme.typography.bodyLarge,
-                fontSize = 44.sp,
+                fontSize = 43.sp,
                 color = MaterialTheme.colorScheme.onBackground, // Color del texto sobre el fondo
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(32.dp))
-            AnimatedSoundWave()
-            /*
-            var angle by remember { mutableStateOf(0f) }
-            val infiniteTransition = rememberInfiniteTransition(label = "")
-            val angleAnim by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 2000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ), label = ""
+            Image(
+                painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(120.dp) // Establece el tamaño del logo
             )
-            angle = angleAnim
-            Column(
-                // ...
-            ){
-                Image(
-                    painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
-                    contentDescription = "Logo",
-                    modifier = Modifier
-                        .size(120.dp) // Establece el tamaño del logo
-                        .graphicsLayer {
-                            rotationZ = angle
-                        }
 
-                )
-            }
-            */
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "CASANARE STEREO NETWORK",
@@ -148,7 +147,19 @@ fun PantallaPresentacion(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(48.dp))
             Button(
-                onClick = {navController.navigate(Destinos.CasanareLoginScreen.ruta)},
+                onClick = {
+                    //navController.navigate(Destinos.CasanareLoginScreen.ruta)
+
+                    if (user != null) {navController.navigate(Destinos.HomeCasanareVista.ruta) {
+                     popUpTo(Destinos.PantallaPresentacion.ruta) { inclusive = true }
+                 }
+             } else {
+                 navController.navigate(Destinos.CasanareLoginScreen.ruta) {
+                     popUpTo(Destinos.PantallaPresentacion.ruta) { inclusive = true }
+                 }
+             }
+
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -206,7 +217,8 @@ fun PantallaPresentacion(navController: NavController) {
                 )
             }
         }
-        Text(text = "Beneficios de tener una cuenta",
+        Text(
+            text = "Beneficios de tener una cuenta",
             color = Color.White,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -215,60 +227,16 @@ fun PantallaPresentacion(navController: NavController) {
         )
     }
 }
+
 @Composable
-fun SoundWaveIcon(modifier: Modifier = Modifier, amplitude: Float, color: Color) {
-    Canvas(modifier = modifier) {
-        val path = Path().apply {
-            val width = size.width
-            val height = size.height
-            val centerY = height / 2
-
-            val lineWidth = width / 7 // Ancho de cada línea
-            val totalLineWidth = 20 * lineWidth // Ancho total de la onda (20 líneas)
-            val offset = (width - totalLineWidth) / 2 // Offset para centrar
-
-            // Crear múltiples líneas para simular una onda
-            for (i in 0..20) {
-                val x = offset + i * lineWidth
-                val y = centerY + (amplitude * 1.8f * sin(x.toDouble())).toFloat()
-                moveTo(x, centerY)
-                lineTo(x, y)
-            }
-        }
-        drawPath(
-            path = path,
-            color = color,
-            style = Stroke(width = 20f)// Trazo más grueso
-        )
-    }
-}
-@Composable
-fun AnimatedSoundWave() {
-    // Crear una transición infinita
-    val infiniteTransition = rememberInfiniteTransition(label = "wave_animation")
-
-    // Animar la amplitud de la onda
-    val amplitude by infiniteTransition.animateFloat(
-        initialValue = 10f,
-        targetValue = 50f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "amplitude_animation"
-    )
-
-    // Dibujar el icono de la onda sonora con la animación
-    SoundWaveIcon(
-        modifier = Modifier
-            .size(120.dp)
-            .padding(16.dp),
-        amplitude = amplitude,
-        color = MaterialTheme.colorScheme.onPrimary
-    )
+fun PreviewContent() {
+    val context = LocalContext.current
+    val navController = remember { NavHostController(context) }
+    PantallaPresentacion(navController)
 }
 
 @Preview(showBackground = true)
 @Composable
 fun CasanareStereoPreview() {
-    PantallaPresentacion(navController = rememberNavController())
+    PreviewContent()
 }

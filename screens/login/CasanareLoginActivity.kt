@@ -8,6 +8,7 @@ package com.jcmateus.casanarestereo.screens.login
 //import androidx.compose.ui.graphics.BlendMode
 //import androidx.compose.ui.graphics.ColorFilter
 //import com.google.android.gms.auth.api.signin.GoogleSignIn
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
@@ -25,12 +26,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import android.provider.Settings
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,6 +43,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -48,6 +54,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -62,6 +71,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+
+
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -84,21 +96,23 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.GoogleAuthProvider
-import com.jcmateus.casanarestereo.AnimatedSoundWave
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+import kotlinx.coroutines.launch
 
 class CasanareLoginActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
@@ -110,25 +124,32 @@ class CasanareLoginActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CasanareLoginScreen(
-    navController: NavController,
-    viewModel: LoginScreenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-
+    navController: NavHostController
 ) {
+    val dataStoreManager = (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
+    val viewModel: LoginScreenViewModel = remember {
+        LoginScreenViewModelFactory(dataStoreManager).create(LoginScreenViewModel::class.java)
+    }
+    var selectedRol by remember { mutableStateOf<Rol?>(null) } // Rol seleccionado
     val isLoading by viewModel.loading.observeAsState(initial = false)
     val errorMessage by viewModel.errorMessage.observeAsState(initial = null)
     var CheckNotificaciones by remember { mutableStateOf(false) }
     var CheckTerminos by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() } // Crear SnackbarHostState
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState() // Observa el estado de inicio de sesión
+    val authState by viewModel.authState.collectAsState()
     val successMessage by viewModel.successMessage.observeAsState(initial = null)
     //True = Login; False = Create
     val showLoginForm = rememberSaveable {
         mutableStateOf(true)
     }
+    var showDialog by remember { mutableStateOf(false) }
     val token = "792234410149-82bpdkviurrvrr69g49irmemrafdam82.apps.googleusercontent.com"
     val context = LocalContext.current
+    var email by remember { mutableStateOf("") }
+    var showSnackbar by remember { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) {
@@ -136,7 +157,7 @@ fun CasanareLoginScreen(
         try{
             val account = task.getResult(ApiException::class.java)
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            viewModel.signInWithGoogleCredential(credential) {
+            viewModel.signInWithGoogleCredential(context, credential, selectedRol) {
                 navController.navigate(PantallaFormulario.SeleccionRol.ruta)
             }
         }
@@ -163,209 +184,337 @@ fun CasanareLoginScreen(
             }
         }
     }
-    LaunchedEffect(key1 = isLoggedIn) {
-        if (isLoggedIn) {
-            if (viewModel.isCreateUser) {
-                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+    var locationPermissionGranted by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope() // Obtener CoroutineScope
+    val launcherMultiplePermissions = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissionsMap ->
+            val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
+            if (areGranted) {
+                // Permisos concedidos
+                coroutineScope.launch { // Lanzar una corrutina
+                    dataStoreManager.setLocationPermissionGranted(true)
+                }
             } else {
-                navController.navigate(Destinos.HomeCasanareVista.ruta)
+                // Permisos denegados
             }
-            viewModel.clearIsLoggedIn()
         }
+    )
+    LaunchedEffect(key1 = Unit) {
+        showDialog = dataStoreManager.getShowDialog()
+        locationPermissionGranted = dataStoreManager.getLocationPermissionGranted()
+    }
+    LaunchedEffect(key1 = Unit) {
+        viewModel.authSuccess.collect { hasAccount ->
+            if (hasAccount) {
+                navController.navigate(Destinos.HomeCasanareVista.ruta)
+            } else {
+                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+            }
+        }
+    }
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Activar notificaciones y ubicación") },
+            text = { Text("Para una mejor experiencia, activa las notificaciones y la ubicación.") },
+            confirmButton = {
+                Button(onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        launcherMultiplePermissions.launch(
+                            arrayOf(
+                                Manifest.permission.POST_NOTIFICATIONS,
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    } else {
+                        launcherMultiplePermissions.launch(arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                        )
+                    }
+                    showDialog = false
+                    coroutineScope.launch {
+                        dataStoreManager.setShowDialog(false)
+                    }
+                }) {
+                    Text("Abrir configuración")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
     Surface(
         modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Box {
-            // Imagen de fondo
-            Image(
-                painter = painterResource(id = R.drawable.fondo), // Reemplaza con tu imagen
-                contentDescription = "Imagen de fondo",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF000000).copy(alpha = 0.9f)),
-                contentScale = ContentScale.Crop,
-            )
-            // Capa de oscurecimiento
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF000000).copy(alpha = 0.7f))
-            )
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-            modifier= Modifier.fillMaxSize()
-        ) {
-            Box {
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    AnimatedSoundWave()
-                    Spacer(modifier = Modifier.padding(20.dp))
-                    Text(
-                        text = "CASANARE STEREO NETWORK",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
-                    )
-                    Text(
-                        text = "DONDE LATE EL CORAZÓN DEL LLANO",
-                        style = MaterialTheme.typography.bodySmall,
-                        //fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onBackground  // Cambia el color del texto para que se vea sobre la imagen
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .padding(15.dp)
-                    //.absoluteOffset(x = 0.dp, y = (-403).dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.onBackground)
-                    .clickable {
-                        val opciones = GoogleSignInOptions
-                            .Builder(
-                                GoogleSignInOptions.DEFAULT_SIGN_IN
-                            )
-                            .requestIdToken(token)
-                            .requestEmail()
-                            .build()
-                        val googleSignInClient = getClient(context, opciones)
-                        launcher.launch(googleSignInClient.signInIntent)
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ){
+        Scaffold(
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) } // Mover SnackbarHost aquí
+        ){ paddingValues ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Imagen de fondo
                 Image(
-                    painter = painterResource(id = R.drawable.logo_de_google_48),
-                    contentDescription = "Google",
+                    painter = painterResource(id = R.drawable.fondo), // Reemplaza con tu imagen
+                    contentDescription = "Imagen de fondo",
                     modifier = Modifier
-                        .size(38.dp)
-                        .padding(6.dp)
+                        .fillMaxSize()
+                        .background(Color(0xFF000000).copy(alpha = 0.9f)),
+                    contentScale = ContentScale.Crop,
                 )
-                Text(text = "Continuar con Google",
-                    fontSize = 12.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondary
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            if (showLoginForm.value) {
-                Text(
-                    text = "Crea una cuenta",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                )
-                UserForm(
-                    isCreateAccount = true,
-                    CheckNotificaciones = CheckNotificaciones,
-                    CheckTerminos = CheckTerminos
-                ) { email, password ->
-                    Log.d("Casanare", "Creando cuenta con$email y $password")
-                    viewModel.createUserWithEmailAndPassword(email, password, CheckNotificaciones, CheckTerminos) {
-                        navController.navigate(PantallaFormulario.SeleccionRol.ruta)
-                    }
-                }
-            } else {
-                Text(text = "Inicia sesión",
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimary)
-                UserForm(
-                    isCreateAccount = false,
-                    CheckNotificaciones = CheckNotificaciones,
-                    CheckTerminos = CheckTerminos
-
-                )
-                { email, password ->
-                    Log.d("Casanare", "Iniciando sesión con $email y $password")
-                    viewModel.signInWithEmailAndPassword(email, password, CheckNotificaciones, CheckTerminos) {
-                        navController.navigate(Destinos.HomeCasanareVista.ruta)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.padding(15.dp))
-
-            Row(
-                modifier = Modifier.padding(15.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                val text1 = if (
-                    showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
-                val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
-                Text(
-                    text = text1, color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
-                )
-                Text(text = text2,
+                // Capa de oscurecimiento
+                Box(
                     modifier = Modifier
-                        .clickable { showLoginForm.value = !showLoginForm.value }
-                        .padding(start = 15.dp),
-                    color = MaterialTheme.colorScheme.error
+                        .fillMaxSize()
+                        .background(Color(0xFF000000).copy(alpha = 0.7f))
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Top,
+                modifier= Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
 
-                )
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = CheckNotificaciones,
-                    onCheckedChange = { CheckNotificaciones = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
-                        uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Acepto Notificaciones", color = MaterialTheme.colorScheme.onPrimary)
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val annotatedString = buildAnnotatedString {
-                    withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
-                        append("términos y condiciones")
+                Box {
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
+                            contentDescription = "Logo",
+                            modifier = Modifier
+                                .size(120.dp) // Establece el tamaño del logo
+                        )
+                        Spacer(modifier = Modifier.padding(20.dp))
+                        Text(
+                            text = "CASANARE STEREO NETWORK",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                        )
+                        Text(
+                            text = "DONDE LATE EL CORAZÓN DEL LLANO",
+                            style = MaterialTheme.typography.bodySmall,
+                            //fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onBackground  // Cambia el color del texto para que se vea sobre la imagen
+                        )
                     }
                 }
-                Checkbox(
-                    checked = CheckTerminos,
-                    onCheckedChange = { CheckTerminos = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
-                        uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .padding(15.dp)
+                        //.absoluteOffset(x = 0.dp, y = (-403).dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .size(40.dp)
+                        .background(MaterialTheme.colorScheme.onBackground)
+                        .clickable {
+                            val opciones = GoogleSignInOptions
+                                .Builder(
+                                    GoogleSignInOptions.DEFAULT_SIGN_IN
+                                )
+                                .requestIdToken(token)
+                                .requestEmail()
+                                .build()
+                            val googleSignInClient = getClient(context, opciones)
+                            launcher.launch(googleSignInClient.signInIntent)
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ){
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_de_google_48),
+                        contentDescription = "Google",
+                        modifier = Modifier
+                            .size(38.dp)
+                            .padding(6.dp)
                     )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = annotatedString,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.clickable {
-                        // Abrir la página de términos y condiciones
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("URL_DE_TERMINOS_Y_CONDICIONES"))
-                        context.startActivity(intent)
+                    Text(text = "Continuar con Google",
+                        fontSize = 12.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                // ----> Lógica de selección de rol <----
+                var rol by remember { mutableStateOf(Rol.USUARIO) }
+                Row {
+                    RadioButton(
+                        selected = rol == Rol.USUARIO,
+                        onClick = {
+                            rol = Rol.USUARIO
+                            selectedRol = rol
+                        },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                    Text(
+                        "Usuario",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    )
+                    RadioButton(
+                        selected = rol == Rol.EMISORA,
+                        onClick = {
+                            rol = Rol.EMISORA
+                            selectedRol = rol
+                        },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary,
+                            unselectedColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                    Text(
+                        "Emisora",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    )
+                }
+                if (showLoginForm.value) {
+                    Text(
+                        text = "Crea una cuenta",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    )
+                    UserForm(
+                        isCreateAccount = true,
+                        CheckNotificaciones = CheckNotificaciones,
+                        CheckTerminos= CheckTerminos,
+                        onNavigate = { navController.navigate(PantallaFormulario.SeleccionRol.ruta) },
+                        onDone = { _, _ -> },
+                        selectedRol = selectedRol // Pasar selectedRol
+                    ) { email, password ->
+                        Log.d("Casanare", "Creando cuenta con $email y $password")
+                        viewModel.createUserWithEmailAndPassword(
+                            email.toString(),
+                            password.toString(),
+                            CheckNotificaciones,
+                            CheckTerminos,
+                            selectedRol
+                        ) {}
                     }
-                )
+                } else {
+                    Text(
+                        text = "Inicia sesión",
+                        fontSize = 18.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    UserForm(
+                        isCreateAccount = false,
+                        CheckNotificaciones = CheckNotificaciones,
+                        CheckTerminos = CheckTerminos,
+                        onNavigate = { navController.navigate(Destinos.HomeCasanareVista.ruta) },
+                        selectedRol = selectedRol // Pasar selectedRol
+                    ) { email, password ->
+                        Log.d("Casanare", "Iniciando sesión con $email y $password")
+                        viewModel.signInWithEmailAndPassword(context, email.toString(),
+                            password.toString(), selectedRol) {}
+                    }
+                }
+                if (CheckNotificaciones && CheckTerminos) {
+                   // Text("Recuerda activar las notificaciones y la ubicación para una mejor experiencia.", color = MaterialTheme.colorScheme.onPrimary)
+                }
+                Spacer(modifier = Modifier.padding(10.dp))
+                Row(
+                    modifier = Modifier.padding(15.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    val text1 = if (
+                        showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
+                    val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
+                    Text(
+                        text = text1, color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
+                    )
+                    Text(text = text2,
+                        modifier = Modifier
+                            .clickable { showLoginForm.value = !showLoginForm.value }
+                            .padding(start = 15.dp),
+                        color = MaterialTheme.colorScheme.error
+
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = CheckNotificaciones,
+                        onCheckedChange = { CheckNotificaciones = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
+                            uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Acepto Notificaciones", color = MaterialTheme.colorScheme.onPrimary)
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val annotatedString = buildAnnotatedString {
+                        withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
+                            append("términos y condiciones")
+                        }
+                    }
+                    Checkbox(
+                        checked = CheckTerminos,
+                        onCheckedChange = { CheckTerminos = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
+                            uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = annotatedString,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.clickable {
+                            // Abrir la página de términos y condiciones
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://casanarestero.blogspot.com/p/terminos-y-condiciones-de-politica-y.html"))
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+
+
             }
-
-
         }
+
     }
     // Mostrar SnackbarHost
     SnackbarHost(hostState = snackbarHostState)
+}
+@Composable
+fun ShowFloatingMessage(message: String, duration: SnackbarDuration = SnackbarDuration.Short) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    SnackbarHost(hostState = snackbarHostState)
+
+    LaunchedEffect(key1 = message) {
+        snackbarHostState.showSnackbar(
+            message = message,
+            duration = duration
+        )
+    }
 }
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
@@ -388,45 +537,43 @@ fun UserForm(
     isCreateAccount: Boolean = false,
     CheckNotificaciones: Boolean,
     CheckTerminos: Boolean,
-    onDone: (String, String) -> Unit = { _, _ -> }
+    onNavigate: () -> Unit,
+    onDone: (String, String) -> Unit = { _, _ -> },
+    selectedRol: Rol?, // Recibir selectedRol como parámetro
+    param: (Any, Any) -> Unit,
 ) {
-    val email = rememberSaveable {
-        mutableStateOf("")
-    }
-    val password = rememberSaveable {
-        mutableStateOf("")
-    }
-    val passwordVisible = rememberSaveable {
-        mutableStateOf(false)
-    }
+    val email = rememberSaveable { mutableStateOf("") }
+    val password = rememberSaveable { mutableStateOf("") }
+    val passwordVisible = rememberSaveable { mutableStateOf(false) }
     val valido = email.value.trim().isNotEmpty() && password.value.trim().isNotEmpty() && CheckNotificaciones && CheckTerminos
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        EmailInput(
-            emailState = email,
-            labelId = "Correo",
-            )
-        PasswordInput(
-            passwordState = password,
-            labelId = "Contraseña",
-            passwordVisible = passwordVisible,
-        )
-        //Spacer(modifier = Modifier.height(16.dp)) // Espacio entre campos y botón
-        SubmitButton(
-            textId = if (isCreateAccount) "Crear cuenta" else "Iniciar sesión",
-            inputValido = valido,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.wrapContentHeight()
+    ) {
 
+        EmailInput(emailState = email, labelId = "Correo")
+        PasswordInput(passwordState = password, labelId = "Contraseña", passwordVisible = passwordVisible)
 
-            ) {
-            onDone(email.value.trim(), password.value.trim())
-            keyboardController?.hide()
+        Button(
+            onClick = {
+                if (valido) {
+                    onDone(email.value.trim(), password.value.trim())
+                    onNavigate() // Llamar a la lambda de navegación
+                    keyboardController?.hide()
+                }
+            },
+            enabled = valido // Habilitar el botón solo si los campos son válidos
+        ) {
+            Text(if (isCreateAccount) "Crear Cuenta" else "Iniciar Sesión")
         }
-
     }
-
 }
-
+enum class Rol {
+    USUARIO,
+    EMISORA
+}
 @Composable
 fun SubmitButton(
     textId: String,
@@ -436,8 +583,9 @@ fun SubmitButton(
     Button(
         onClick = onClic,
         modifier = Modifier
-            .padding(8.dp)
-            .fillMaxWidth(0.8f)
+            .padding(16.dp)
+            .height(64.dp)
+            .fillMaxWidth()
             .then(if (inputValido) Modifier.shadow(elevation = 2.dp, shape = MaterialTheme.shapes.medium) else Modifier), // Añadir sombra si está habilitado,
         shape = MaterialTheme.shapes.medium,
         enabled = inputValido,
@@ -450,8 +598,8 @@ fun SubmitButton(
         Text(
             text = textId,
             modifier = Modifier
-                .padding(4.dp),
-            color = if (inputValido) MaterialTheme.colorScheme.primary else Color.White, // Cambiar color si está deshabilitado
+                .padding(8.dp),
+            color = if (inputValido) MaterialTheme.colorScheme.primary else Color.White, fontSize = 20.sp, // Cambiar color si está deshabilitado
             // ... otros estilos
 
         )
@@ -486,7 +634,7 @@ fun PasswordInput(
         trailingIcon = {
             if (passwordState.value.isNotBlank()) {
                 PasswordVisibleIcon(passwordVisible)
-            } 
+            }
         },
         textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onBackground)
     )
@@ -551,13 +699,18 @@ fun InputField(
     )
 
 }
-
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun PreviewContent() {
+    val context = LocalContext.current
+    val navController = remember { NavHostController(context) }
+    CasanareLoginScreen(navController)
+}
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    CasanareStereoTheme {
-        CasanareLoginScreen(navController = rememberNavController())
-    }
+    PreviewContent()
 }
 
 
