@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -54,6 +55,7 @@ fun VideosYoutubeView(navController: NavHostController) {
     )
     val userLoggedIn by remember { mutableStateOf(false)} // Variable de estado para el inicio de sesión
     Scaffold(
+        /*
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 if (userLoggedIn) {
@@ -64,7 +66,9 @@ fun VideosYoutubeView(navController: NavHostController) {
             }) {
                 Icon(imageVector = Icons.Filled.Person, contentDescription = "Account")
             }
-        }) { paddingValues ->
+        }
+                */
+    ) { paddingValues ->
         // Contenido de la pantalla (VideoGrid) con paddingValues
         VideoGrid(
             videoUrls = videoUrls,
@@ -78,7 +82,7 @@ fun VideosYoutubeView(navController: NavHostController) {
 @Composable
 fun VideoGrid(videoUrls: List<String>, videoNames: List<String>, navController: NavHostController, modifier: Modifier = Modifier) {
     LazyColumn(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize().height(100.dp)
     ) {
         items(
             items = videoUrls.zip(videoNames),
@@ -91,7 +95,8 @@ fun VideoGrid(videoUrls: List<String>, videoNames: List<String>, navController: 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp),
+                        .padding(vertical = 32.dp)
+                        .padding(4.dp),
                     elevation = 2.dp
                 ) {
                     Column {
@@ -119,7 +124,7 @@ fun YouTubePlayer(videoId: String) {
         factory = { youTubePlayerView },
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f),
+            .aspectRatio(4f / 3f),
         update = { view ->
             view.layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
 

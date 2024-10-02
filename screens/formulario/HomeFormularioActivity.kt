@@ -6,10 +6,12 @@ package com.jcmateus.casanarestereo.screens.formulario
 //import androidx.compose.material.SnackbarHostState
 //noinspection UsingMaterialAndMaterial3Libraries
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EmergencyRecording
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.TipsAndUpdates
 import androidx.compose.material3.Button
@@ -62,40 +65,47 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import androidx.wear.compose.material.ContentAlpha
-import com.jcmateus.casanarestereo.AnimatedSoundWave
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.ui.theme.CasanareStereoTheme
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class HomeFormularioActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme {
+                val loginViewModel = createLoginViewModel(application as HomeApplication)
                 val viewModel: FormularioViewModel = viewModel()
+                val context = LocalContext.current.applicationContext
+                //val dataStoreManager = DataStoreManager.getInstance(context)
                 LaunchedEffect(Unit) {
                     navController.navigate(PantallaFormulario.SeleccionRol.ruta)
                 }
-                NavigationHost(navController = navController, innerPadding = PaddingValues())
+                NavigationHost(
+                    navController = navController,
+                    innerPadding = PaddingValues(),
+                    loginViewModel = loginViewModel
+                )
             }
         }
     }
@@ -141,10 +151,11 @@ fun PantallaFinalScreen(viewModel: FormularioViewModel, navController: NavHostCo
 
 @Composable
 fun SeleccionRolScreen(navController: NavHostController) {
+    val application = LocalContext.current.applicationContext as HomeApplication
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // Usamos el color de fondo del tema
+            .background(MaterialTheme.colorScheme.background) // Usamos el color de fondo del tem
     ) {
         // Imagen de fondo
         Image(
@@ -172,34 +183,12 @@ fun SeleccionRolScreen(navController: NavHostController) {
             ){
 
                 Spacer(modifier = Modifier.height(32.dp))
-                AnimatedSoundWave()
-                /*
-                var angle by remember { mutableStateOf(0f) }
-                val infiniteTransition = rememberInfiniteTransition(label = "")
-                val angleAnim by infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 360f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 2000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    ), label = ""
-                )
-                angle = angleAnim
-                Column(
-                    // ...
-                ){
                     Image(
                         painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
                         contentDescription = "Logo",
                         modifier = Modifier
                             .size(120.dp) // Establece el tamaño del logo
-                            .graphicsLayer {
-                                rotationZ = angle
-                            }
-
                     )
-                }
-                */
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -289,8 +278,38 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         color = MaterialTheme.colorScheme.surface
                     )
                 }
+                Button(
+                    onClick = {
+                        application.showScaffold = true
+                        navController.navigate(Destinos.Pantalla16.ruta) },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .width(300.dp)
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        contentColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.EmergencyRecording,
+                        contentDescription = "Cuidadanos",
+                        modifier = Modifier
+                            .padding(end = 30.dp)
+                            .size(34.dp),
+                        //tint = Color.Black
+                    )
+                    Text(
+                        text = "Ciudadano",
+                        modifier = Modifier
+                            .padding(end = 45.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 24.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.surface
+                    )
+                }
             }
-
         }
     }
 }
@@ -313,7 +332,7 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(innerPadding)
-                    .padding(horizontal = 16.dp), // Padding horizontal para centrar el botón
+                    .padding(horizontal = 6.dp), // Padding horizontal para centrar el botón
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.padding(40.dp))
@@ -983,8 +1002,3 @@ sealed class PantallaFormulario(val ruta: String) {
     data object PantallaFinal : PantallaFormulario("pantalla_final")
 }
 
-@Preview(showBackground = true)
-@Composable
-fun CasanareStereoTheme() {
-    SeleccionRolScreen(navController = rememberNavController())
-}
