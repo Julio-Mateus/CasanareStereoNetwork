@@ -14,9 +14,9 @@ data class User(
     val rol: String
 
 ){
-    fun toMap(): Map<String, Any?>{
+    fun toMap(userId: String): Map<String, Any?>{
         return mutableMapOf(
-            "user_Id" to this.userId,
+            "user_Id" to userId,
             "display_Name" to this.displayName,
             "avatar_url" to this.avatarUrl,
             "quote" to this.quote,

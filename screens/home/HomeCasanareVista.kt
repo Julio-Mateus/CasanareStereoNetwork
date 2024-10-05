@@ -65,6 +65,7 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,13 +83,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
+import com.jcmateus.casanarestereo.model.Emisora
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
+import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
@@ -99,6 +103,7 @@ import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Nacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Regionales
+import com.jcmateus.casanarestereo.screens.menus.PerfilEmisora
 import com.jcmateus.casanarestereo.screens.menus.Podcast
 import com.jcmateus.casanarestereo.screens.menus.Preferencias
 import com.jcmateus.casanarestereo.screens.menus.Programacion
@@ -106,6 +111,7 @@ import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
+import com.jcmateus.casanarestereo.screens.menus.guardarEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -148,11 +154,11 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
-fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScreenViewModel, showScaffold: Boolean) {
+fun HomeCasanareVista(navController: NavHostController, viewModel: LoginScreenViewModel, showScaffold: Boolean) {
     Log.d("NavController", "Home: $navController")
     val dataStoreManager =
         (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
-    val viewModel: HomeViewModel = viewModel()
+
 
     val scaffoldState = rememberScaffoldState()
     val context = LocalContext.current.applicationContext
@@ -180,18 +186,38 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
         Destinos.Pantalla8, // Podcast
         Destinos.Pantalla14, // Preferencias
     )
+    val usuario by viewModel.currentUser.collectAsState() // Observa el StateFlow del usuario actual
+    var emisora by remember { mutableStateOf<Emisora?>(null) }
+    LaunchedEffect(key1 = usuario) { // Lanza un efecto cuando usuario cambia
+        if (usuario != null && usuario!!.rol == Rol.EMISORA.name) {
+            // Obtén la información de la emisora de Firestore
+            FirebaseFirestore.getInstance().collection("emisoras")
+                .document(usuario!!.userId) // Usa el userId como ID de la emisora
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                    emisora = document.toObject(Emisora::class.java)
+                } else {
+                    // Crea una nueva emisora si no existe
+                    emisora = Emisora(id = usuario!!.userId)
+                    guardarEmisora(emisora!!) // Guarda la nueva emisora en Firestore
+                }
+                }
+                .addOnFailureListener { exception ->
+                    // Maneja el error al obtener la emisora
+                    Log.w("HomeCasanareVista", "Error al obtener la emisora", exception)
+                }
+        }
+    }
+    if (usuario != null && usuario!!.rol == Rol.EMISORA.name && emisora != null) { // Verifica si emisora no es null
+        PerfilEmisora(emisora!!) { emisoraActualizada ->
+            guardarEmisora(emisoraActualizada)
+        }
+    } else {
+        // Mostrar la información para usuarios normales
+        // ...
+    }
     val currentRoute = currentRoute(navController) ?: ""
-    /*val shouldShowScaffold = currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-     */
-
 
     var authState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
 
@@ -221,17 +247,17 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
         Scaffold(
             scaffoldState = scaffoldState,
             bottomBar = {
-                if (shouldShowBottomBar(currentRoute)) {
+                if (shouldShowBottomBar(currentRoute, bottomNavDestinations)) {
                     NavegacionInferior(navController, bottomNavDestinations)
                 }
             },
             topBar = {
-                if (shouldShowTopBar(currentRoute)) {
-                    TopBar(scope, scaffoldState, navController, allDestinations, viewModel)
+                if (shouldShowTopBar(currentRoute, allDestinations, bottomNavDestinations)) {
+                    TopBar(scope, scaffoldState, navController, allDestinations, )
                 }
             },
             drawerContent = {
-                if (shouldShowDrawer(currentRoute)) {
+                if (shouldShowDrawer(currentRoute, allDestinations, bottomNavDestinations)) {
                     Drawer(
                         scope,
                         scaffoldState,
@@ -265,35 +291,16 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
     }
 }
 
-fun shouldShowBottomBar(currentRoute: String): Boolean {
-    return currentRoute == Destinos.Pantalla1.ruta ||
-            currentRoute == Destinos.Pantalla2.ruta ||
-            currentRoute == Destinos.Pantalla8.ruta ||
-            currentRoute == Destinos.Pantalla14.ruta
+fun shouldShowBottomBar(currentRoute: String, bottomNavDestinations:List<Destinos>): Boolean {
+    return currentRoute in bottomNavDestinations.map { it.ruta }
 }
 
-fun shouldShowTopBar(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
+fun shouldShowTopBar(currentRoute: String, allDestinations: List<Destinos>, bottomNavDestinations: List<Destinos>): Boolean {
+    return currentRoute in allDestinations.map { it.ruta } || currentRoute in bottomNavDestinations.map { it.ruta }
 }
 
-fun shouldShowDrawer(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
+fun shouldShowDrawer(currentRoute: String, allDestinations: List<Destinos>, bottomNavDestinations: List<Destinos>): Boolean {
+    return currentRoute in allDestinations.map { it.ruta } || currentRoute in bottomNavDestinations.map { it.ruta }
 }
 
 @Composable
@@ -351,8 +358,7 @@ fun TopBar(
     scope: CoroutineScope,
     scaffoldState: ScaffoldState,
     navController: NavHostController,
-    items: List<Destinos>,
-    viewModel: HomeViewModel
+    items: List<Destinos>
 
 ) {
     currentRoute(navController = navController)
@@ -368,7 +374,7 @@ fun TopBar(
 
         title = {
             Text(
-                text = viewModel.currentTitle,
+                text = "",
                 fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier,

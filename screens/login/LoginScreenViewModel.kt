@@ -61,19 +61,28 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
 
     init {
         viewModelScope.launch {
-            Log.d("LoginScreenViewModel", "Valor inicial de _authState: ${_authState.value}") // Log para el valor inicial
+            Log.d(
+                "LoginScreenViewModel",
+                "Valor inicial de _authState: ${_authState.value}"
+            ) // Log para el valor inicial
             dataStoreManager.getIsLoggedIn().collect { isLoggedIn ->
                 _authState.value = if (isLoggedIn) {
                     EstadoAutenticacion.LoggedIn
                 } else {
                     EstadoAutenticacion.LoggedOut
                 }
-                Log.d("LoginScreenViewModel", "Valor de _authState después de DataStore: ${_authState.value}") // Log después de DataStore
+                Log.d(
+                    "LoginScreenViewModel",
+                    "Valor de _authState después de DataStore: ${_authState.value}"
+                ) // Log después de DataStore
             }
             // Verificar si hay un usuario actual en FirebaseAuth
             val currentUser = auth.currentUser
             if (currentUser != null) {
-                Log.d("LoginScreenViewModel", "Usuario actual: ${currentUser.uid}") // Log del usuario actual
+                Log.d(
+                    "LoginScreenViewModel",
+                    "Usuario actual: ${currentUser.uid}"
+                ) // Log del usuario actual
                 _authSuccess.emit(true) // Indicar que el usuario ya ha iniciado sesión
             } else {
                 Log.d("LoginScreenViewModel", "No hay usuario actual") // Log si no hay usuario
@@ -84,7 +93,9 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
 
     }
 
-    private var authStateListener: FirebaseAuth.AuthStateListener? =null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    private val _currentUser = MutableStateFlow<User?>(null) // Agrega un StateFlow para el usuario actual
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     private fun setupAuthStateListener() {
         val listener = FirebaseAuth.AuthStateListener { auth ->
@@ -93,14 +104,35 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
                     dataStoreManager.saveIsLoggedIn(true)
                     _isLoggedIn.value = true
                     _authState.value = EstadoAutenticacion.LoggedIn
-                    Log.d("LoginScreenViewModel", "Usuario autenticado detectado: ${auth.currentUser?.uid}") // Log en AuthStateListener
+                    // Obtén la información del usuario de Firestore
+                    FirebaseFirestore.getInstance().collection("users")
+                        .document(auth.currentUser!!.uid)
+                        .get()
+                        .addOnSuccessListener { document ->
+                            if (document != null && document.exists()) {
+                                _currentUser.value = document.toObject(User::class.java) // Actualiza el StateFlow con la información del usuario
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            // Maneja el error al obtener la información del usuario
+                            Log.w("LoginScreenViewModel", "Error al obtener la información del usuario", exception)
+                        }
+                    Log.d(
+                        "LoginScreenViewModel",
+                        "Usuario autenticado detectado: ${auth.currentUser?.uid}"
+                    ) // Log en AuthStateListener
                 }
             } else {
                 viewModelScope.launch {
                     dataStoreManager.saveIsLoggedIn(false)
                     _isLoggedIn.value = false
-                    _authState.value = EstadoAutenticacion.LoggedOut}
-                Log.d("LoginScreenViewModel", "No hay usuario autenticado") // Log en AuthStateListener
+                    _authState.value = EstadoAutenticacion.LoggedOut
+                    _currentUser.value = null // Limpia el StateFlow cuando el usuario cierra sesión
+                }
+                Log.d(
+                    "LoginScreenViewModel",
+                    "No hay usuario autenticado"
+                ) // Log en AuthStateListener
             }
         }
         authStateListener = listener
@@ -109,7 +141,12 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
 
 
     // Login with Google
-    fun signInWithGoogleCredential(context: Context, credential: AuthCredential, rol: Rol?, home: () -> Unit) =
+    fun signInWithGoogleCredential(
+        context: Context,
+        credential: AuthCredential,
+        rol: Rol?,
+        home: () -> Unit
+    ) =
         viewModelScope.launch {
             try {
                 _loading.value = true
@@ -226,7 +263,7 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
                                             if (task.isSuccessful) {
                                                 val displayName =
                                                     task.result.user?.email?.split("@")?.get(0)
-                                                createUser(displayName)
+                                                createUser(displayName, rol)
                                                 _successMessage.value = "¡Cuenta creada con éxito!"
                                                 viewModelScope.launch {
                                                     _authSuccess.emit(false)
@@ -281,41 +318,38 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
 
-    private fun createUser(displayName: String?) {
+    private fun createUser(displayName: String?, rol: Rol?) {
         val userId = auth.currentUser?.uid ?: return
-        //val user = mutableMapOf<String, Any>()
-
-        //user["user_id"] = userId.toString()
-        //user["display_name"] = displayName.toString()
-
-        //Usando Data Class
         val user = User(
+            id = null,
             userId = userId,
             displayName = displayName.toString(),
             avatarUrl = "",
             quote = "",
             profession = "",
-            rol = "",
-            id = null
-        ).toMap()
+            isFirstTime = true,
+            rol = rol?.name ?: Rol.USUARIO.name // Guarda el rol del usuario
+        ).toMap(userId)
 
         FirebaseFirestore.getInstance().collection("users")
-            .document(userId) // Usar el ID del usuario como ID del documento
+            .document(userId)
             .set(user)
             .addOnSuccessListener {
                 _successMessage.value = "¡Creado con éxito!"
-                Log.d("CasanareStereo", "Creado con exito: $it.id")
+                Log.d("CasanareStereo", "Creado con éxito: $it.id")
+                // Aquí puedes agregar lógica adicional, como navegar a la siguiente pantalla
+                // o actualizar el estado de autenticación
+                _authState.value = EstadoAutenticacion.LoggedIn // Actualiza el estado de autenticación
+                viewModelScope.launch {
+                    dataStoreManager.saveIsLoggedIn(true) // Guarda el estado de inicio de sesión
+                }
             }
             .addOnFailureListener { e ->
                 _errorMessage.value = "Error al crear la cuenta + ${e.message}"
-                viewModelScope.launch {
-                    // Retrasar la navegación
-                    //delay(1000) // Esperar 1 segundo
-                }
-
-                Log.w("CasanareStereo", "Error de creacion de usuario", e)
+                Log.w("CasanareStereo", "Error de creación de usuario", e)
+                // Aquí puedes agregar lógica para manejar el error, como mostrar un mensaje al usuario
+                _authState.value = EstadoAutenticacion.LoggedOut // Actualiza el estado de autenticación en caso de error
             }
-
     }
 
     fun cerrarSesion() {
