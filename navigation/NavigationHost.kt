@@ -54,6 +54,7 @@ fun NavigationHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
     loginViewModel: LoginScreenViewModel,
+    formularioViewModel: FormularioViewModel
 ) {
     Log.d("NavController", "NavigationHost: $navController")
     val viewModel: FormularioViewModel = viewModel()
@@ -70,7 +71,7 @@ fun NavigationHost(
             SplashScreen(navController = navController)
         }
         composable(Destinos.PantallaPresentacion.ruta){
-            PantallaPresentacion(navController = navController)
+            PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
         }
         composable(Destinos.CasanareLoginScreen.ruta){
             CasanareLoginScreen(navController = navController)
@@ -84,22 +85,22 @@ fun NavigationHost(
             SeleccionRolScreen(navController)
         }
         composable(PantallaFormulario.Estudiantes.ruta) {
-            Estudiantes(viewModel, navController)
+            Estudiantes(formularioViewModel, navController)
         }
         composable(PantallaFormulario.Estudiantes1.ruta) {
-            Estudiantes1(viewModel, navController)
+            Estudiantes1(formularioViewModel, navController)
         }
         composable(PantallaFormulario.Estudiantes2.ruta) {
-            Estudiantes2(viewModel, navController)
+            Estudiantes2(formularioViewModel, navController)
         }
         composable(PantallaFormulario.Estudiantes3.ruta) {
-            Estudiantes3(viewModel, navController)
+            Estudiantes3(formularioViewModel, navController)
         }
         composable(PantallaFormulario.Docentes.ruta) {
-            Docentes(viewModel, navController)
+            Docentes(formularioViewModel, navController)
         }
         composable(PantallaFormulario.PantallaFinal.ruta) {
-            PantallaFinalScreen(viewModel, navController)
+            PantallaFinalScreen(formularioViewModel, navController)
         }
 
 

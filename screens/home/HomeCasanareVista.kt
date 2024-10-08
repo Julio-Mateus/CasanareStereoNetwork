@@ -36,7 +36,9 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,10 +64,12 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,16 +87,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
+import com.jcmateus.casanarestereo.MainScreen
 import com.jcmateus.casanarestereo.R
-import com.jcmateus.casanarestereo.model.Emisora
 import com.jcmateus.casanarestereo.navigation.NavigationHost
+import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
-import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
@@ -103,7 +106,6 @@ import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Nacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Regionales
-import com.jcmateus.casanarestereo.screens.menus.PerfilEmisora
 import com.jcmateus.casanarestereo.screens.menus.Podcast
 import com.jcmateus.casanarestereo.screens.menus.Preferencias
 import com.jcmateus.casanarestereo.screens.menus.Programacion
@@ -111,7 +113,6 @@ import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
-import com.jcmateus.casanarestereo.screens.menus.guardarEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -134,8 +135,10 @@ class HomeActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val loginViewModel = createLoginViewModel(application as HomeApplication)
-                    val showScaffold = (application as HomeApplication).showScaffold
-                    HomeCasanareVista(navController, loginViewModel, showScaffold = showScaffold)
+                    val homeViewModel: HomeViewModel = viewModel()
+                    val formularioViewModel: FormularioViewModel = viewModel()
+
+                    ScaffoldScreen(loginViewModel, homeViewModel, true, formularioViewModel)
                 }
             }
 
@@ -152,364 +155,18 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@SuppressLint("UnusedMaterialScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterialScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @Composable
-fun HomeCasanareVista(navController: NavHostController, viewModel: LoginScreenViewModel, showScaffold: Boolean) {
+fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScreenViewModel, showScaffold: Boolean) {
     Log.d("NavController", "Home: $navController")
-    val dataStoreManager =
-        (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
 
+    // Obtener la entrada actual de la pila de navegación
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute =  currentBackStackEntry?.destination?.route ?: ""
 
-    val scaffoldState = rememberScaffoldState()
-    val context = LocalContext.current.applicationContext
-    //val dataStoreManager = DataStoreManager.getInstance(context)
-    val scope = rememberCoroutineScope()
-    val allDestinations = listOf(
-        Destinos.Pantalla1,
-        Destinos.Pantalla2,
-        Destinos.Pantalla3,
-        Destinos.Pantalla4,
-        Destinos.Pantalla5,
-        Destinos.Pantalla6,
-        Destinos.Pantalla7,
-        Destinos.Pantalla8,
-        Destinos.Pantalla9,
-        Destinos.Pantalla10,
-        Destinos.Pantalla11,
-        Destinos.Pantalla12,
-        Destinos.Pantalla13,
-
-        )
-    val bottomNavDestinations = listOf(
-        Destinos.Pantalla1, // Inicio
-        Destinos.Pantalla2, // Emisoras
-        Destinos.Pantalla8, // Podcast
-        Destinos.Pantalla14, // Preferencias
-    )
-    val usuario by viewModel.currentUser.collectAsState() // Observa el StateFlow del usuario actual
-    var emisora by remember { mutableStateOf<Emisora?>(null) }
-    LaunchedEffect(key1 = usuario) { // Lanza un efecto cuando usuario cambia
-        if (usuario != null && usuario!!.rol == Rol.EMISORA.name) {
-            // Obtén la información de la emisora de Firestore
-            FirebaseFirestore.getInstance().collection("emisoras")
-                .document(usuario!!.userId) // Usa el userId como ID de la emisora
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                    emisora = document.toObject(Emisora::class.java)
-                } else {
-                    // Crea una nueva emisora si no existe
-                    emisora = Emisora(id = usuario!!.userId)
-                    guardarEmisora(emisora!!) // Guarda la nueva emisora en Firestore
-                }
-                }
-                .addOnFailureListener { exception ->
-                    // Maneja el error al obtener la emisora
-                    Log.w("HomeCasanareVista", "Error al obtener la emisora", exception)
-                }
-        }
-    }
-    if (usuario != null && usuario!!.rol == Rol.EMISORA.name && emisora != null) { // Verifica si emisora no es null
-        PerfilEmisora(emisora!!) { emisoraActualizada ->
-            guardarEmisora(emisoraActualizada)
-        }
-    } else {
-        // Mostrar la información para usuarios normales
-        // ...
-    }
-    val currentRoute = currentRoute(navController) ?: ""
-
-    var authState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
-
-    fun updateAuthState(newState: EstadoAutenticacion) {
-        authState = newState
-    }
-    LaunchedEffect(key1 = authState) {
-        when (authState) {
-            EstadoAutenticacion.LoggedIn -> {
-                navController.navigate(Destinos.HomeCasanareVista.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            EstadoAutenticacion.LoggedOut -> {
-                navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            else -> {}
-        }
-    }
-
-
-    if (showScaffold) {
-        Scaffold(
-            scaffoldState = scaffoldState,
-            bottomBar = {
-                if (shouldShowBottomBar(currentRoute, bottomNavDestinations)) {
-                    NavegacionInferior(navController, bottomNavDestinations)
-                }
-            },
-            topBar = {
-                if (shouldShowTopBar(currentRoute, allDestinations, bottomNavDestinations)) {
-                    TopBar(scope, scaffoldState, navController, allDestinations, )
-                }
-            },
-            drawerContent = {
-                if (shouldShowDrawer(currentRoute, allDestinations, bottomNavDestinations)) {
-                    Drawer(
-                        scope,
-                        scaffoldState,
-                        navController,
-                        items = allDestinations
-                    )
-                }
-            }
-        ) { innerPadding ->
-            when (currentRoute) {
-                Destinos.Pantalla1.ruta -> Inicio()
-                Destinos.Pantalla2.ruta -> Emisoras()
-                Destinos.Pantalla3.ruta -> Noticias_Regionales()
-                Destinos.Pantalla4.ruta -> Noticias_Nacionales()
-                Destinos.Pantalla5.ruta -> Noticias_Internacionales()
-                Destinos.Pantalla6.ruta -> Programacion()
-                Destinos.Pantalla7.ruta -> Programas()
-                Destinos.Pantalla8.ruta -> Podcast()
-                Destinos.Pantalla9.ruta -> Contactenos()
-                Destinos.Pantalla10.ruta -> Clasificados()
-                Destinos.Pantalla11.ruta -> Youtube_Casanare()
-                Destinos.Pantalla12.ruta -> Configuraciones()
-                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController)
-                Destinos.Pantalla14.ruta -> Preferencias()
-                Destinos.Pantalla15.ruta -> Se_Le_Tiene()
-                Destinos.Pantalla16.ruta -> VideosYoutubeView(navController)
-                Destinos.Pantalla17.ruta -> Mi_Zona()
-                else -> {} // Manejar otras rutas o mostrar un mensaje de error
-            }
-        }
-    }
-}
-
-fun shouldShowBottomBar(currentRoute: String, bottomNavDestinations:List<Destinos>): Boolean {
-    return currentRoute in bottomNavDestinations.map { it.ruta }
-}
-
-fun shouldShowTopBar(currentRoute: String, allDestinations: List<Destinos>, bottomNavDestinations: List<Destinos>): Boolean {
-    return currentRoute in allDestinations.map { it.ruta } || currentRoute in bottomNavDestinations.map { it.ruta }
-}
-
-fun shouldShowDrawer(currentRoute: String, allDestinations: List<Destinos>, bottomNavDestinations: List<Destinos>): Boolean {
-    return currentRoute in allDestinations.map { it.ruta } || currentRoute in bottomNavDestinations.map { it.ruta }
-}
-
-@Composable
-fun NavegacionInferior(
-    navController: NavHostController,
-    items: List<Destinos>
-) {
-    BottomAppBar(
-        backgroundColor = Color.LightGray,
-        modifier = Modifier
-            //.height(30.dp)
-            .fillMaxWidth()
-
-    ) {
-        BottomNavigation(
-            backgroundColor = Color.LightGray,
-        ) {
-            val currentRoute = currentRoute(navController = navController)
-            items.forEach { item ->
-                BottomNavigationItem(
-                    selected = currentRoute == item.ruta,
-                    onClick = {
-                        navController.navigate(item.ruta) {
-                            /*popUpTo(navController.graph.startDestinationId) {
-                                saveState =true
-                            }*/
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    icon = {
-                        item.icon?.let {
-                            Icon(
-                                painter = painterResource(id = item.icon),
-                                contentDescription = item.title,
-                                tint = Color.Black,
-                                modifier = Modifier
-                                    .size(25.dp)
-                            )
-                        }
-
-                    },
-                    label = {
-                        Text(item.title)
-                    },
-                    alwaysShowLabel = false
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TopBar(
-    scope: CoroutineScope,
-    scaffoldState: ScaffoldState,
-    navController: NavHostController,
-    items: List<Destinos>
-
-) {
-    currentRoute(navController = navController)
-
-    TopAppBar(
-        backgroundColor = Color(0xFF000000).copy(alpha = 0.5f),
-        contentColor = Color.Black,
-        modifier = Modifier,
-        //.height(120.dp),
-
-        //.verticalScroll(rememberScrollState()),
-
-
-        title = {
-            Text(
-                text = "",
-                fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier,
-
-                )
-
-
-        },
-        navigationIcon = {
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        scaffoldState.drawerState.open()
-                    }
-                },
-
-                ) {
-                Icon(
-                    imageVector = Icons.Filled.Menu,
-                    contentDescription = "Menu",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(30.dp),
-
-                    )
-            }
-        },
-        actions = {
-            TextButton(onClick = {
-                navController.navigate(Destinos.Pantalla15.ruta)
-            }) {
-                Text("Se le tiene")
-            }
-            TextButton(onClick = { navController.navigate(Destinos.Pantalla16.ruta) }) {
-                Text("Educación")
-            }
-            TextButton(onClick = { navController.navigate(Destinos.Pantalla17.ruta) }) {
-                Text("Mi zona")
-            }
-        }
-
-    )
+    // Mostrar el contenido de la vista actual
+    NavigationContent(currentRoute, navController)
 
 }
 
-
-@Composable
-fun Drawer(
-    scope: CoroutineScope,
-    scaffoldState: ScaffoldState,
-    navController: NavHostController,
-    items: List<Destinos>,
-
-    ) {
-
-    Column(
-        modifier = Modifier
-            .verticalScroll(rememberScrollState())
-    ) {
-        Image(
-            painterResource(id = R.drawable.fondo),
-            contentDescription = "Logo",
-            modifier = Modifier
-                .height(160.dp)
-                .fillMaxWidth()
-                .background(Color(0xFF000000).copy(alpha = 0.7f)),
-            contentScale = ContentScale.FillWidth,
-
-            )
-        Spacer(
-            modifier = Modifier
-                .height(15.dp)
-                .fillMaxWidth()
-        )
-        val currentRoute = currentRoute(navController)
-        items.forEach { item ->
-            DrawerItem(
-                item = item,
-                selected = currentRoute == item.ruta,
-            ) {
-                navController.navigate(it.ruta) {
-                    launchSingleTop = true
-                }
-                scope.launch {
-                    scaffoldState.drawerState.close()
-                }
-            }
-        }
-    }
-
-}
-
-@SuppressLint("SuspiciousIndentation")
-@Composable
-fun DrawerItem(
-    item: Destinos,
-    selected: Boolean,
-    onItemClick: (Destinos) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(6.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.secondary
-                else MaterialTheme.colorScheme.surface
-            )
-            .padding(8.dp)
-            .clickable { onItemClick(item) },
-        verticalAlignment = Alignment.CenterVertically,
-
-
-        ) {
-        if (item.icon != null)
-            Image(
-                painterResource(id = item.icon),
-                contentDescription = item.title
-            )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.background,
-
-            )
-
-    }
-}
-
-// Funcion para el resalte del la opcion seleccionada en el menu
-@Composable
-fun currentRoute(navController: NavHostController): String? {
-    return navController.currentBackStackEntryAsState().value?.destination?.route
-}
 

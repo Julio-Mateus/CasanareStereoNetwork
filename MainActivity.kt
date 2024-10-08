@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +27,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +56,8 @@ import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
+import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
+import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 
 class MainActivity : ComponentActivity() {
@@ -82,11 +87,13 @@ fun MainScreen(navController: NavHostController) {
 }
 
 @Composable
-fun PantallaPresentacion(navController: NavHostController) {
+fun PantallaPresentacion(navController: NavHostController, loginViewModel: LoginScreenViewModel) {
     var user by remember { mutableStateOf<FirebaseUser?>(null) }
     val authListener = FirebaseAuth.AuthStateListener { auth ->
         user = auth.currentUser
     }
+    var showAnimation by remember { mutableStateOf(false) }
+    var animationMessage by remember { mutableStateOf("") }
     DisposableEffect(authListener) {
         FirebaseAuth.getInstance().addAuthStateListener(authListener)
         onDispose {
@@ -145,20 +152,28 @@ fun PantallaPresentacion(navController: NavHostController) {
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
             )
+
             Spacer(modifier = Modifier.height(48.dp))
             Button(
                 onClick = {
-                    //navController.navigate(Destinos.CasanareLoginScreen.ruta)
-
                     if (user != null) {navController.navigate(Destinos.HomeCasanareVista.ruta) {
-                     popUpTo(Destinos.PantallaPresentacion.ruta) { inclusive = true }
+                        launchSingleTop = true
                  }
              } else {
                  navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                     popUpTo(Destinos.PantallaPresentacion.ruta) { inclusive = true }
+                     launchSingleTop = true
                  }
              }
+                    // Mostrar mensaje o animación con la información del usuario
+                    val currentUser = loginViewModel.authState.value
+                    if (currentUser is EstadoAutenticacion.LoggedIn) {
+                        // Accede a la información del usuario (correo o nombre)
+                        val userEmail = currentUser.user?.email ?: "" // O currentUser.user?.displayName
 
+                        // Actualiza el estado para mostrar el Snackbar
+                        showAnimation = true
+                        animationMessage = "Bienvenido, $userEmail"
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -168,12 +183,19 @@ fun PantallaPresentacion(navController: NavHostController) {
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
-            ) {
+            )
+            {
                 Text(
                     "Iniciar Sesión",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
+            }
+            // Mostrar la animación si showAnimation es true
+            AnimatedVisibility(visible = showAnimation) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(animationMessage, fontSize = 20.sp) // Puedes reemplazar esto con tu animación
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedButton(
@@ -228,15 +250,4 @@ fun PantallaPresentacion(navController: NavHostController) {
     }
 }
 
-@Composable
-fun PreviewContent() {
-    val context = LocalContext.current
-    val navController = remember { NavHostController(context) }
-    PantallaPresentacion(navController)
-}
 
-@Preview(showBackground = true)
-@Composable
-fun CasanareStereoPreview() {
-    PreviewContent()
-}
