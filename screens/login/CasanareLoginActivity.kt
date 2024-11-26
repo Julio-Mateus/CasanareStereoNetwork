@@ -86,6 +86,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -134,16 +135,19 @@ fun CasanareLoginScreen(
     val dataStoreManager =
         (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
     val viewModel: LoginScreenViewModel = remember {
-        LoginScreenViewModelFactory(dataStoreManager).create(LoginScreenViewModel::class.java)
+        LoginScreenViewModelFactory(
+            dataStoreManager,
+            authService = TODO()
+        ).create(LoginScreenViewModel::class.java)
     }
     var selectedRol by remember { mutableStateOf<Rol?>(null) } // Rol seleccionado
-    val isLoading by viewModel.loading.observeAsState(initial = false)
-    val errorMessage by viewModel.errorMessage.observeAsState(initial = null)
+    val isLoading by viewModel.loading.collectAsStateWithLifecycle(initialValue = false)
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle(initialValue = null)
     var CheckNotificaciones by remember { mutableStateOf(false) }
     var CheckTerminos by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() } // Crear SnackbarHostState
    // val authState by viewModel.authState.collectAsState()
-    val successMessage by viewModel.successMessage.observeAsState(initial = null)
+    val successMessage by viewModel.successMessage.collectAsStateWithLifecycle(initialValue = null)
     //True = Login; False = Create
     val showLoginForm = rememberSaveable {
         mutableStateOf(true)
@@ -167,7 +171,7 @@ fun CasanareLoginScreen(
         try {
             val account = task.getResult(ApiException::class.java)
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            viewModel.signInWithGoogleCredential(context, credential, selectedRol) {
+            viewModel.iniciarSesionConGoogle(context, credential, selectedRol) {
                 navController.navigate(PantallaFormulario.SeleccionRol.ruta)
             }
         } catch (ex: Exception) {
@@ -335,7 +339,7 @@ fun CasanareLoginScreen(
                         Text(
                             text = "CASANARE STEREO NETWORK",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
                         )
@@ -384,7 +388,7 @@ fun CasanareLoginScreen(
                     Text(
                         text = "Continuar con Google",
                         fontSize = 12.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondary
                     )
                 }
@@ -430,7 +434,7 @@ fun CasanareLoginScreen(
                         text = "Crea una cuenta",
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 18.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        fontWeight = FontWeight.Medium,
                     )
                     UserForm(
                         isCreateAccount = true,
@@ -445,7 +449,7 @@ fun CasanareLoginScreen(
                                 } else {
                                     // Crear cuenta
                                     Log.d("Casanare", "Creando cuenta con $email y $password")
-                                    viewModel.createUserWithEmailAndPassword(
+                                    viewModel.crearUsuarioConCorreoYContrasena(
                                         email.toString(),
                                         password.toString(),
                                         CheckTerminos,
@@ -455,7 +459,7 @@ fun CasanareLoginScreen(
                             } else {
                                 // Iniciar sesión
                                 Log.d("Casanare", "Iniciando sesión con $email y $password")
-                                viewModel.signInWithEmailAndPassword(
+                                viewModel.iniciarSesionConCorreoYContrasena(
                                     context, email.toString(),
                                     password.toString(), selectedRol
                                 ) {}
@@ -464,7 +468,7 @@ fun CasanareLoginScreen(
                         selectedRol = selectedRol // Pasar selectedRol
                     ) { email, password ->
                         Log.d("Casanare", "Creando cuenta con $email y $password")
-                        viewModel.createUserWithEmailAndPassword(
+                        viewModel.crearUsuarioConCorreoYContrasena(
                             email.toString(),
                             password.toString(),
                             CheckTerminos,
@@ -475,7 +479,7 @@ fun CasanareLoginScreen(
                     Text(
                         text = "Inicia sesión",
                         fontSize = 18.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     UserForm(
@@ -485,7 +489,7 @@ fun CasanareLoginScreen(
                         selectedRol = selectedRol // Pasar selectedRol
                     ) { email, password ->
                         Log.d("Casanare", "Iniciando sesión con $email y $password")
-                        viewModel.signInWithEmailAndPassword(
+                        viewModel.iniciarSesionConCorreoYContrasena(
                             context, email.toString(),
                             password.toString(), selectedRol
                         ) {}
@@ -531,7 +535,7 @@ fun CasanareLoginScreen(
                     Text(
                         text = text1, color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 18.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
+                        fontWeight = FontWeight.Light,
                     )
                     Text(text = text2,
                         modifier = Modifier
