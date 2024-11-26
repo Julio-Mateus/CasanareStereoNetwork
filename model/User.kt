@@ -15,14 +15,15 @@ data class User(
 
 ){
     fun toMap(): Map<String, Any?>{
-        return mutableMapOf(
-            "user_Id" to this.userId,
-            "display_Name" to this.displayName,
-            "avatar_url" to this.avatarUrl,
-            "quote" to this.quote,
-            "profession" to this.profession,
-            "isFirstTime" to this.isFirstTime,
-            "rol" to this.rol
+        return mapOf(
+            "id" to id,
+            "userId" to userId,
+            "displayName" to displayName,
+            "avatarUrl" to avatarUrl,
+            "quote" to quote,
+            "profession" to profession,
+            "isFirstTime" to isFirstTime,
+            "rol" to rol
         )
     }
 }

@@ -3,6 +3,7 @@ package com.jcmateus.casanarestereo.screens.menus
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun Inicio() {
+fun Inicio(innerPadding: PaddingValues) {
     Column(
         modifier = Modifier
             .fillMaxSize()

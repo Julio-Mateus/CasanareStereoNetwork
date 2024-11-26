@@ -1,6 +1,6 @@
 package com.jcmateus.casanarestereo.screens.menus
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,7 +10,7 @@ import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 
 @Composable
-fun CerrarSesionButton(navController: NavHostController) {
+fun CerrarSesionButton(navController: NavHostController, innerPadding: PaddingValues) {
     val loginViewModel: LoginScreenViewModel = viewModel()
     Button(onClick = {
         loginViewModel.cerrarSesion()

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlin.toString
 
 class DataStoreManager(private val context: Context) {
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")

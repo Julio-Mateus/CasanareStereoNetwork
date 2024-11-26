@@ -55,7 +55,6 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Scaffold
 import androidx.compose.material.ScaffoldState
-import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
@@ -63,6 +62,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,9 +82,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
-import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
@@ -120,22 +120,20 @@ class HomeActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val navController = (application as HomeApplication).navController
         setContent {
             CasanareStereoTheme {
+                // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val navController = rememberNavController()
                     val loginViewModel = createLoginViewModel(application as HomeApplication)
                     val showScaffold = (application as HomeApplication).showScaffold
                     HomeCasanareVista(navController, loginViewModel, showScaffold = showScaffold)
                 }
             }
-
         }
-
-
     }
 }
 
@@ -200,7 +198,7 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
     }
     LaunchedEffect(key1 = authState) {
         when (authState) {
-            EstadoAutenticacion.LoggedIn -> {
+            is EstadoAutenticacion.LoggedIn -> {
                 navController.navigate(Destinos.HomeCasanareVista.ruta) {
                     popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                 }
@@ -242,23 +240,23 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
             }
         ) { innerPadding ->
             when (currentRoute) {
-                Destinos.Pantalla1.ruta -> Inicio()
-                Destinos.Pantalla2.ruta -> Emisoras()
-                Destinos.Pantalla3.ruta -> Noticias_Regionales()
-                Destinos.Pantalla4.ruta -> Noticias_Nacionales()
-                Destinos.Pantalla5.ruta -> Noticias_Internacionales()
-                Destinos.Pantalla6.ruta -> Programacion()
-                Destinos.Pantalla7.ruta -> Programas()
-                Destinos.Pantalla8.ruta -> Podcast()
-                Destinos.Pantalla9.ruta -> Contactenos()
-                Destinos.Pantalla10.ruta -> Clasificados()
-                Destinos.Pantalla11.ruta -> Youtube_Casanare()
-                Destinos.Pantalla12.ruta -> Configuraciones()
-                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController)
-                Destinos.Pantalla14.ruta -> Preferencias()
-                Destinos.Pantalla15.ruta -> Se_Le_Tiene()
-                Destinos.Pantalla16.ruta -> VideosYoutubeView(navController)
-                Destinos.Pantalla17.ruta -> Mi_Zona()
+                Destinos.Pantalla1.ruta -> Inicio(innerPadding)
+                Destinos.Pantalla2.ruta -> Emisoras(innerPadding)
+                Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding)
+                Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
+                Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
+                Destinos.Pantalla6.ruta -> Programacion(innerPadding)
+                Destinos.Pantalla7.ruta -> Programas(innerPadding)
+                Destinos.Pantalla8.ruta -> Podcast(innerPadding)
+                Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
+                Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
+                Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
+                Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
+                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController, innerPadding)
+                Destinos.Pantalla14.ruta -> Preferencias(innerPadding)
+                Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
+                Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
+                Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
                 else -> {} // Manejar otras rutas o mostrar un mensaje de error
             }
         }
@@ -506,4 +504,7 @@ fun DrawerItem(
 fun currentRoute(navController: NavHostController): String? {
     return navController.currentBackStackEntryAsState().value?.destination?.route
 }
+
+
+
 
