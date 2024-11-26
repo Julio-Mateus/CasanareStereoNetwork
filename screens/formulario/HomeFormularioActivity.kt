@@ -104,7 +104,8 @@ class HomeFormularioActivity : ComponentActivity() {
                 NavigationHost(
                     navController = navController,
                     innerPadding = PaddingValues(),
-                    loginViewModel = loginViewModel
+                    loginViewModel = loginViewModel,
+                    formularioViewModel = viewModel
                 )
             }
         }

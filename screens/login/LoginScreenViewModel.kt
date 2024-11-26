@@ -17,6 +17,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.text.get
 
 class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : ViewModel() {
     private val auth: FirebaseAuth = Firebase.auth
@@ -45,7 +47,6 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
     val successMessage: LiveData<String?> = _successMessage
     var isCreateUser = false
     private val _authSuccess = MutableSharedFlow<Boolean>()
-    val authSuccess: SharedFlow<Boolean> = _authSuccess.asSharedFlow()
 
     fun clearErrorMessage() {
         _errorMessage.value = null
@@ -61,10 +62,11 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
 
     init {
         viewModelScope.launch {
+            val rol = obtenerRolUsuario(auth.currentUser?.uid)
             Log.d("LoginScreenViewModel", "Valor inicial de _authState: ${_authState.value}") // Log para el valor inicial
-            dataStoreManager.getIsLoggedIn().collect { isLoggedIn ->
-                _authState.value = if (isLoggedIn) {
-                    EstadoAutenticacion.LoggedIn(auth.currentUser)
+            dataStoreManager.obtenerRolUsuario().collect { rol ->
+                _authState.value = if (auth.currentUser != null) {
+                    EstadoAutenticacion.LoggedIn(auth.currentUser, rol)
                 } else {
                     EstadoAutenticacion.LoggedOut
                 }
@@ -84,6 +86,23 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
 
     }
 
+    private suspend fun obtenerRolUsuario(userId: String?): Rol? {
+        return try {
+            if (userId != null) {
+                FirebaseFirestore.getInstance().collection("users")
+                    .document(userId)
+                    .get()
+                    .await()
+                    .toObject(User::class.java)?.rol
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("LoginScreenViewModel", "Error al obtener el rol del usuario", e)
+            null // O manejar el error de otra manera
+        } as Rol?
+    }
+
     private var authStateListener: FirebaseAuth.AuthStateListener? =null
 
     private fun setupAuthStateListener() {
@@ -92,7 +111,10 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
                 viewModelScope.launch {
                     dataStoreManager.saveIsLoggedIn(true)
                     _isLoggedIn.value = true
-                    _authState.value = EstadoAutenticacion.LoggedIn(auth.currentUser)
+                    val rol = obtenerRolUsuario(auth.currentUser?.uid)
+                    // Guardar el rol del usuario en DataStore
+                    dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
+                    _authState.value = EstadoAutenticacion.LoggedIn(auth.currentUser, rol)
                     Log.d("LoginScreenViewModel", "Usuario autenticado detectado: ${auth.currentUser?.uid}") // Log en AuthStateListener
                 }
             } else {
@@ -120,8 +142,10 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
                     Log.d("CasanareStereo", "Logueado con Google Exitoso")
                     dataStoreManager.saveIsLoggedIn(true) // Guardar el estado de inicio de sesión
                     (context.applicationContext as HomeApplication).showScaffold = true
+                    // Guardar el rol del usuario en DataStore
+                    dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                     _successMessage.value = "¡Logueado con éxito!"
-                    _authState.value = EstadoAutenticacion.LoggedIn(user)
+                    _authState.value = EstadoAutenticacion.LoggedIn(user, rol)
                     _authSuccess.emit(true)
                     home()
                 } else {
@@ -154,7 +178,9 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
             val result = auth.signInWithEmailAndPassword(email, password).await()
             if (result.user != null) {
                 (context.applicationContext as HomeApplication).showScaffold = true
-                _authState.value = EstadoAutenticacion.LoggedIn(result.user)
+                _authState.value = EstadoAutenticacion.LoggedIn(result.user, rol)
+                // Guardar el rol del usuario en DataStore
+                dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                 viewModelScope.launch {
                     dataStoreManager.saveIsLoggedIn(true)
                     home()
@@ -192,14 +218,13 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
     fun createUserWithEmailAndPassword(
         email: String,
         password: String,
-        checkNotificaciones: Boolean,
         checkTerminos: Boolean,
         rol: Rol?,
         home: () -> Unit
     ) {
 
         val valido = email.trim().isNotEmpty() && password.trim()
-            .isNotEmpty() && checkNotificaciones && checkTerminos
+            .isNotEmpty() &&  checkTerminos
         if (valido) {
             if (_loading.value == true) return
             if (!isValidEmail(email)) {
@@ -227,6 +252,9 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
                                                 val displayName =
                                                     task.result.user?.email?.split("@")?.get(0)
                                                 createUser(displayName)
+                                                viewModelScope.launch {
+                                                    dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
+                                                }
                                                 _successMessage.value = "¡Cuenta creada con éxito!"
                                                 viewModelScope.launch {
                                                     _authSuccess.emit(false)
@@ -317,6 +345,7 @@ class LoginScreenViewModel(private val dataStoreManager: DataStoreManager) : Vie
             }
 
     }
+
 
     fun cerrarSesion() {
         viewModelScope.launch {

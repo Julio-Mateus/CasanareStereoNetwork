@@ -72,8 +72,6 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-
-
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -96,8 +94,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
@@ -110,12 +110,14 @@ import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
+import kotlin.toString
 
 class CasanareLoginActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
+        val navController =
+            (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme {
                 CasanareLoginScreen(navController = navController)
@@ -129,7 +131,8 @@ class CasanareLoginActivity : ComponentActivity() {
 fun CasanareLoginScreen(
     navController: NavHostController
 ) {
-    val dataStoreManager = (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
+    val dataStoreManager =
+        (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
     val viewModel: LoginScreenViewModel = remember {
         LoginScreenViewModelFactory(dataStoreManager).create(LoginScreenViewModel::class.java)
     }
@@ -139,29 +142,35 @@ fun CasanareLoginScreen(
     var CheckNotificaciones by remember { mutableStateOf(false) }
     var CheckTerminos by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() } // Crear SnackbarHostState
-    val authState by viewModel.authState.collectAsState()
+   // val authState by viewModel.authState.collectAsState()
     val successMessage by viewModel.successMessage.observeAsState(initial = null)
     //True = Login; False = Create
     val showLoginForm = rememberSaveable {
         mutableStateOf(true)
     }
     var showDialog by remember { mutableStateOf(false) }
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var showTermsDialogGoogle by remember { mutableStateOf(false) } // Para términos y condiciones de Google
+    var showTermsDialogCreateAccount by remember { mutableStateOf(false) } // Para términos y condiciones de crear cuenta
+    var googleSignInRequested by remember { mutableStateOf(false) }
     val token = "792234410149-82bpdkviurrvrr69g49irmemrafdam82.apps.googleusercontent.com"
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
+    var configuracionInicialCompleta by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
+    val authState = viewModel.authState.collectAsStateWithLifecycle()
+    //val currentAuthState by authState.collectAsState() // Convertir a State
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
     ) {
         val task = getSignedInAccountFromIntent(it.data)
-        try{
+        try {
             val account = task.getResult(ApiException::class.java)
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
             viewModel.signInWithGoogleCredential(context, credential, selectedRol) {
                 navController.navigate(PantallaFormulario.SeleccionRol.ruta)
             }
-        }
-        catch(ex: Exception){
+        } catch (ex: Exception) {
             Log.d("Casanare", "LoginScreen: ${ex.message}")
         }
 
@@ -170,10 +179,10 @@ fun CasanareLoginScreen(
     if (isLoading) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
-    when{
+    when {
         // Mostrar mensaje de error si errorMessage no es nulo
         errorMessage != null -> {
-            ShowSnackbar(snackbarHostState, errorMessage!!){
+            ShowSnackbar(snackbarHostState, errorMessage!!) {
                 viewModel.clearErrorMessage() // Limpiar el mensaje de error después de mostrarlo
             }
         }
@@ -204,12 +213,37 @@ fun CasanareLoginScreen(
         showDialog = dataStoreManager.getShowDialog()
         locationPermissionGranted = dataStoreManager.getLocationPermissionGranted()
     }
-    LaunchedEffect(key1 = Unit) {
-        viewModel.authSuccess.collect { hasAccount ->
-            if (hasAccount) {
-                navController.navigate(Destinos.HomeCasanareVista.ruta)
-            } else {
-                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+    LaunchedEffect(key1 = authState.value) {
+        // Recolectar el valor del StateFlow
+        when (authState.value) { // Usar state en el when
+            is EstadoAutenticacion.LoggedIn -> {
+                // Verificar si la configuración inicial está completa
+                if (configuracionInicialCompleta) {
+                    navController.navigate(Destinos.HomeCasanareVista.ruta) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                } else {
+                    navController.navigate(PantallaFormulario.SeleccionRol.ruta) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+
+            EstadoAutenticacion.LoggedOut -> {
+                // El usuario no ha iniciado sesión, no se necesita hacer nada aquí,
+                // ya que la pantalla de inicio de sesión ya está visible
+            }
+
+            EstadoAutenticacion.Loading -> {
+                // Otros estados (por ejemplo, cargando), puedes mostrar un indicador de progreso si lo deseas
             }
         }
     }
@@ -229,10 +263,11 @@ fun CasanareLoginScreen(
                             )
                         )
                     } else {
-                        launcherMultiplePermissions.launch(arrayOf(
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                        )
+                        launcherMultiplePermissions.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
                         )
                     }
                     showDialog = false
@@ -258,7 +293,7 @@ fun CasanareLoginScreen(
 
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) } // Mover SnackbarHost aquí
-        ){ paddingValues ->
+        ) { paddingValues ->
             Box(modifier = Modifier.fillMaxSize()) {
                 // Imagen de fondo
                 Image(
@@ -279,7 +314,7 @@ fun CasanareLoginScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
-                modifier= Modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
@@ -323,19 +358,22 @@ fun CasanareLoginScreen(
                         .size(40.dp)
                         .background(MaterialTheme.colorScheme.onBackground)
                         .clickable {
-                            val opciones = GoogleSignInOptions
-                                .Builder(
-                                    GoogleSignInOptions.DEFAULT_SIGN_IN
-                                )
-                                .requestIdToken(token)
-                                .requestEmail()
-                                .build()
-                            val googleSignInClient = getClient(context, opciones)
-                            launcher.launch(googleSignInClient.signInIntent)
+                            if (showLoginForm.value) { // Solo mostrar el diálogo al crear una cuenta
+                                if (!CheckTerminos) {
+                                    showTermsDialog =
+                                        true // Mostrar el diálogo si no se han aceptado los términos
+                                } else {
+                                    googleSignInRequested =
+                                        true // Indicar que se ha solicitado el inicio de sesión con Google
+                                }
+                            } else {
+                                // Iniciar sesión con Google sin mostrar el diálogo (inicio de sesión normal)
+                                // ... (tu código existente) ...
+                            }
                         },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
-                ){
+                ) {
                     Image(
                         painter = painterResource(id = R.drawable.logo_de_google_48),
                         contentDescription = "Google",
@@ -343,7 +381,8 @@ fun CasanareLoginScreen(
                             .size(38.dp)
                             .padding(6.dp)
                     )
-                    Text(text = "Continuar con Google",
+                    Text(
+                        text = "Continuar con Google",
                         fontSize = 12.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondary
@@ -395,17 +434,39 @@ fun CasanareLoginScreen(
                     )
                     UserForm(
                         isCreateAccount = true,
-                        CheckNotificaciones = CheckNotificaciones,
-                        CheckTerminos= CheckTerminos,
+                        CheckTerminos = CheckTerminos,
                         onNavigate = { navController.navigate(PantallaFormulario.SeleccionRol.ruta) },
-                        onDone = { _, _ -> },
+                        onDone = { email, password ->
+                            if (showLoginForm.value) { // Solo mostrar el mensaje al crear una cuenta
+                                if (!CheckTerminos) {
+                                    showTermsDialog =
+                                        true // Mostrar el diálogo si no se han aceptado los términos
+                                    showTermsDialogCreateAccount = true
+                                } else {
+                                    // Crear cuenta
+                                    Log.d("Casanare", "Creando cuenta con $email y $password")
+                                    viewModel.createUserWithEmailAndPassword(
+                                        email.toString(),
+                                        password.toString(),
+                                        CheckTerminos,
+                                        selectedRol
+                                    ) {}
+                                }
+                            } else {
+                                // Iniciar sesión
+                                Log.d("Casanare", "Iniciando sesión con $email y $password")
+                                viewModel.signInWithEmailAndPassword(
+                                    context, email.toString(),
+                                    password.toString(), selectedRol
+                                ) {}
+                            }
+                        },
                         selectedRol = selectedRol // Pasar selectedRol
                     ) { email, password ->
                         Log.d("Casanare", "Creando cuenta con $email y $password")
                         viewModel.createUserWithEmailAndPassword(
                             email.toString(),
                             password.toString(),
-                            CheckNotificaciones,
                             CheckTerminos,
                             selectedRol
                         ) {}
@@ -419,18 +480,45 @@ fun CasanareLoginScreen(
                     )
                     UserForm(
                         isCreateAccount = false,
-                        CheckNotificaciones = CheckNotificaciones,
                         CheckTerminos = CheckTerminos,
                         onNavigate = { navController.navigate(Destinos.HomeCasanareVista.ruta) },
                         selectedRol = selectedRol // Pasar selectedRol
                     ) { email, password ->
                         Log.d("Casanare", "Iniciando sesión con $email y $password")
-                        viewModel.signInWithEmailAndPassword(context, email.toString(),
-                            password.toString(), selectedRol) {}
+                        viewModel.signInWithEmailAndPassword(
+                            context, email.toString(),
+                            password.toString(), selectedRol
+                        ) {}
                     }
                 }
-                if (CheckNotificaciones && CheckTerminos) {
-                   // Text("Recuerda activar las notificaciones y la ubicación para una mejor experiencia.", color = MaterialTheme.colorScheme.onPrimary)
+                if (showTermsDialog) {
+                    // AlertDialog para términos y condiciones
+                    AlertDialog(
+                        onDismissRequest = { showTermsDialog = false },
+                        title = { Text("Aceptar términos y condiciones") },
+                        text = { Text("Debes aceptar los términos y condiciones antes de iniciar sesión.") },
+                        confirmButton = {
+                            Button(onClick = {
+                                showTermsDialog = false
+                                CheckTerminos = true // Chulear el checkbox
+                            }) {
+                                Text("Aceptar")
+                            }
+                        }
+                    )
+                }
+                // Iniciar sesión con Google si se ha solicitado y se han aceptado los términos
+                LaunchedEffect(key1 = googleSignInRequested, key2 = CheckTerminos) {
+                    if (googleSignInRequested && CheckTerminos) {
+                        val opciones = GoogleSignInOptions
+                            .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                            .requestIdToken(token)
+                            .requestEmail()
+                            .build()
+                        val googleSignInClient = getClient(context, opciones)
+                        launcher.launch(googleSignInClient.signInIntent)
+                        googleSignInRequested = false // Restablecer la solicitud
+                    }
                 }
                 Spacer(modifier = Modifier.padding(10.dp))
                 Row(
@@ -456,20 +544,6 @@ fun CasanareLoginScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = CheckNotificaciones,
-                        onCheckedChange = { CheckNotificaciones = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
-                            uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Acepto Notificaciones", color = MaterialTheme.colorScheme.onPrimary)
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     val annotatedString = buildAnnotatedString {
                         withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
                             append("términos y condiciones")
@@ -489,7 +563,10 @@ fun CasanareLoginScreen(
                         color = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.clickable {
                             // Abrir la página de términos y condiciones
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://casanarestero.blogspot.com/p/terminos-y-condiciones-de-politica-y.html"))
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://casanarestero.blogspot.com/p/terminos-y-condiciones-de-politica-y.html")
+                            )
                             context.startActivity(intent)
                         }
                     )
@@ -503,6 +580,7 @@ fun CasanareLoginScreen(
     // Mostrar SnackbarHost
     SnackbarHost(hostState = snackbarHostState)
 }
+
 @Composable
 fun ShowFloatingMessage(message: String, duration: SnackbarDuration = SnackbarDuration.Short) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -516,6 +594,7 @@ fun ShowFloatingMessage(message: String, duration: SnackbarDuration = SnackbarDu
         )
     }
 }
+
 @SuppressLint("CoroutineCreationDuringComposition")
 @Composable
 fun ShowSnackbar(snackbarHostState: SnackbarHostState, message: String, action: () -> Unit) {
@@ -535,7 +614,6 @@ fun ShowSnackbar(snackbarHostState: SnackbarHostState, message: String, action: 
 @Composable
 fun UserForm(
     isCreateAccount: Boolean = false,
-    CheckNotificaciones: Boolean,
     CheckTerminos: Boolean,
     onNavigate: () -> Unit,
     onDone: (String, String) -> Unit = { _, _ -> },
@@ -545,7 +623,8 @@ fun UserForm(
     val email = rememberSaveable { mutableStateOf("") }
     val password = rememberSaveable { mutableStateOf("") }
     val passwordVisible = rememberSaveable { mutableStateOf(false) }
-    val valido = email.value.trim().isNotEmpty() && password.value.trim().isNotEmpty() && CheckNotificaciones && CheckTerminos
+    val valido =
+        email.value.trim().isNotEmpty() && password.value.trim().isNotEmpty() && CheckTerminos
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
@@ -554,7 +633,11 @@ fun UserForm(
     ) {
 
         EmailInput(emailState = email, labelId = "Correo")
-        PasswordInput(passwordState = password, labelId = "Contraseña", passwordVisible = passwordVisible)
+        PasswordInput(
+            passwordState = password,
+            labelId = "Contraseña",
+            passwordVisible = passwordVisible
+        )
 
         Button(
             onClick = {
@@ -570,10 +653,12 @@ fun UserForm(
         }
     }
 }
+
 enum class Rol {
     USUARIO,
     EMISORA
 }
+
 @Composable
 fun SubmitButton(
     textId: String,
@@ -586,7 +671,12 @@ fun SubmitButton(
             .padding(16.dp)
             .height(64.dp)
             .fillMaxWidth()
-            .then(if (inputValido) Modifier.shadow(elevation = 2.dp, shape = MaterialTheme.shapes.medium) else Modifier), // Añadir sombra si está habilitado,
+            .then(
+                if (inputValido) Modifier.shadow(
+                    elevation = 2.dp,
+                    shape = MaterialTheme.shapes.medium
+                ) else Modifier
+            ), // Añadir sombra si está habilitado,
         shape = MaterialTheme.shapes.medium,
         enabled = inputValido,
         colors = ButtonDefaults.buttonColors(
@@ -599,7 +689,8 @@ fun SubmitButton(
             text = textId,
             modifier = Modifier
                 .padding(8.dp),
-            color = if (inputValido) MaterialTheme.colorScheme.primary else Color.White, fontSize = 20.sp, // Cambiar color si está deshabilitado
+            color = if (inputValido) MaterialTheme.colorScheme.primary else Color.White,
+            fontSize = 20.sp, // Cambiar color si está deshabilitado
             // ... otros estilos
 
         )
@@ -672,7 +763,7 @@ fun EmailInput(
         labelId = labelId,
         keyboardType = KeyboardType.Email,
 
-    )
+        )
 
 }
 
@@ -691,7 +782,7 @@ fun InputField(
         modifier = Modifier
             .padding(bottom = 10.dp, start = 10.dp, end = 10.dp)
             .fillMaxWidth(),
-       colors = OutlinedTextFieldDefaults.colors(Color.White),
+        colors = OutlinedTextFieldDefaults.colors(Color.White),
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType
         ),
@@ -699,6 +790,7 @@ fun InputField(
     )
 
 }
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PreviewContent() {
@@ -706,6 +798,7 @@ fun PreviewContent() {
     val navController = remember { NavHostController(context) }
     CasanareLoginScreen(navController)
 }
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable

@@ -7,7 +7,7 @@ import kotlinx.android.parcel.Parcelize
 
 @Parcelize
 sealed class EstadoAutenticacion : Parcelable {
-    data class LoggedIn(val user: FirebaseUser?) : EstadoAutenticacion()
+    data class LoggedIn(val user: FirebaseUser?, val rol: Rol?) : EstadoAutenticacion()
     object LoggedOut : EstadoAutenticacion()
     object Loading : EstadoAutenticacion()
 }
