@@ -81,6 +81,7 @@ import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.ui.theme.CasanareStereoTheme
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
+import com.jcmateus.casanarestereo.screens.login.AuthService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,7 +98,8 @@ class HomeFormularioActivity : ComponentActivity() {
                 val loginViewModel = createLoginViewModel(application as HomeApplication)
                 val viewModel: FormularioViewModel = viewModel()
                 val context = LocalContext.current.applicationContext
-                //val dataStoreManager = DataStoreManager.getInstance(context)
+                val authService = AuthService((application as HomeApplication).firebaseAuth) // Crear instancia de AuthService
+
                 LaunchedEffect(Unit) {
                     navController.navigate(PantallaFormulario.SeleccionRol.ruta)
                 }
@@ -105,7 +107,8 @@ class HomeFormularioActivity : ComponentActivity() {
                     navController = navController,
                     innerPadding = PaddingValues(),
                     loginViewModel = loginViewModel,
-                    formularioViewModel = viewModel
+                    formularioViewModel = viewModel,
+                    authService = authService // Pasar authService a NavigationHost
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.jcmateus.casanarestereo.screens.login
 
+
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -11,6 +12,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlin.text.get
+import kotlin.text.set
 import kotlin.toString
 
 class DataStoreManager(private val context: Context) {
@@ -18,9 +21,10 @@ class DataStoreManager(private val context: Context) {
 
     companion object {
         val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
-        val LOCATION_PERMISSION_GRANTED = booleanPreferencesKey("location_permission_granted") // Nueva key
+        val LOCATION_PERMISSION_GRANTED = booleanPreferencesKey("location_permission_granted")
         val SHOW_DIALOG = booleanPreferencesKey("show_dialog")
         val ROL_USUARIO = stringPreferencesKey("rol_usuario")
+        val TERMS_ACCEPTED = booleanPreferencesKey("terms_accepted") // Nueva key
         @SuppressLint("StaticFieldLeak")
         private var instance: DataStoreManager? = null
         fun getInstance(context: Context): DataStoreManager {
@@ -28,6 +32,16 @@ class DataStoreManager(private val context: Context) {
                 instance = DataStoreManager(context)
             }
             return instance!!
+        }
+    }
+
+    fun getTermsAccepted(): Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[TERMS_ACCEPTED] ?: false
+    }
+
+    suspend fun saveTermsAccepted(accepted: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[TERMS_ACCEPTED] = accepted
         }
     }
 

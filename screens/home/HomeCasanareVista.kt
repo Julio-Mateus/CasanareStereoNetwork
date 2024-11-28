@@ -86,6 +86,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
+import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
@@ -140,7 +141,14 @@ class HomeActivity : ComponentActivity() {
 @Composable
 fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
     val dataStoreManager = application.dataStoreManager
-    return viewModel(factory = LoginScreenViewModelFactory(dataStoreManager))
+    val authService = AuthService(application.firebaseAuth) // Crear instancia de AuthService
+    return viewModel(
+        factory = LoginScreenViewModelFactory(
+            dataStoreManager,
+            authService, // Pasar authService
+            application.firebaseAuth // Pasar firebaseAuth
+        )
+    )
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

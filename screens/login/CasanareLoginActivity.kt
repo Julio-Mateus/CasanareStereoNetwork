@@ -132,16 +132,17 @@ class CasanareLoginActivity : ComponentActivity() {
 fun CasanareLoginScreen(
     navController: NavHostController
 ) {
-    val dataStoreManager =
-        (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
+    val application = LocalContext.current.applicationContext as HomeApplication
+    val dataStoreManager = application.dataStoreManager
     val viewModel: LoginScreenViewModel = remember {
         LoginScreenViewModelFactory(
             dataStoreManager,
-            authService = TODO()
+            authService = AuthService(application.firebaseAuth), // Pasar firebaseAuth a AuthService
+            firebaseAuth = application.firebaseAuth // Pasar firebaseAuth a LoginScreenViewModelFactory
         ).create(LoginScreenViewModel::class.java)
     }
     var selectedRol by remember { mutableStateOf<Rol?>(null) } // Rol seleccionado
-    val isLoading by viewModel.loading.collectAsStateWithLifecycle(initialValue = false)
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle(initialValue = false)
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle(initialValue = null)
     var CheckNotificaciones by remember { mutableStateOf(false) }
     var CheckTerminos by remember { mutableStateOf(false) }
@@ -179,6 +180,15 @@ fun CasanareLoginScreen(
         }
 
     }
+
+    val termsAcceptedFlow = application.dataStoreManager.getTermsAccepted().collectAsStateWithLifecycle(initialValue = false)
+
+    if (!termsAcceptedFlow.value) {
+        // Mostrar el checkbox de términos y condiciones
+    }
+
+    var showCheckbox by remember { mutableStateOf(!termsAcceptedFlow.value) } // Mostrar checkbox si no se han aceptado los términos
+
     // Mostrar indicador de progreso si isLoading es true
     if (isLoading) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -485,7 +495,7 @@ fun CasanareLoginScreen(
                     UserForm(
                         isCreateAccount = false,
                         CheckTerminos = CheckTerminos,
-                        onNavigate = { navController.navigate(Destinos.HomeCasanareVista.ruta) },
+                        onNavigate = { navController.navigate(Destinos.Pantalla1.ruta) },
                         selectedRol = selectedRol // Pasar selectedRol
                     ) { email, password ->
                         Log.d("Casanare", "Iniciando sesión con $email y $password")
@@ -553,15 +563,18 @@ fun CasanareLoginScreen(
                             append("términos y condiciones")
                         }
                     }
-                    Checkbox(
-                        checked = CheckTerminos,
-                        onCheckedChange = { CheckTerminos = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
-                            uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+
+                    if (showCheckbox) {
+                        Checkbox(
+                            checked = CheckTerminos,
+                            onCheckedChange = { CheckTerminos = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
+                                uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
+                            )
                         )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Text(
                         text = annotatedString,
                         color = MaterialTheme.colorScheme.onPrimary,

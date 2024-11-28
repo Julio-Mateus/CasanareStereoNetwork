@@ -17,6 +17,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -48,6 +49,15 @@ class LoginScreenViewModel(
     fun clearSuccessMessage() {
         _successMessage.value = null
     }
+    /*
+    init {
+        viewModelScope.launch {
+                if (dataStoreManager.getIsLoggedIn().first()) {
+                authService.actualizarEstadoAutenticacion()
+            }
+        }
+    }
+     */
 
     // Iniciar sesión con Google
     fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?, home: () -> Unit) {
@@ -115,6 +125,7 @@ class LoginScreenViewModel(
                         dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                         _successMessage.value = "¡Cuenta creada con éxito!"
                         home()
+                        dataStoreManager.saveTermsAccepted(true) // Guarda que los términos fueron aceptados
                     } else {
                         _errorMessage.value = "Error al crear la cuenta en Firestore."
                     }

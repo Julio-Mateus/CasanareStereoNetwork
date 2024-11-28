@@ -11,9 +11,11 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -40,6 +42,7 @@ import com.jcmateus.casanarestereo.screens.home.currentRoute
 import com.jcmateus.casanarestereo.screens.home.shouldShowBottomBar
 import com.jcmateus.casanarestereo.screens.home.shouldShowDrawer
 import com.jcmateus.casanarestereo.screens.home.shouldShowTopBar
+import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
@@ -53,6 +56,7 @@ import com.jcmateus.casanarestereo.screens.menus.Programacion
 import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
 import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
+import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Inicio
@@ -68,16 +72,19 @@ fun NavigationHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
     loginViewModel: LoginScreenViewModel,
-    formularioViewModel: FormularioViewModel
+    formularioViewModel: FormularioViewModel,
+    authService: AuthService
 ) {
     Log.d("NavController", "NavigationHost: $navController")
-    val viewModel: FormularioViewModel = viewModel()
-    val context = LocalContext.current.applicationContext
-    //val application = LocalContext.current.applicationContext as HomeApplication // Ya no es necesario
-    //val showScaffold = application.showScaffold // Ya no es necesario
-    val scope = rememberCoroutineScope()
-    val scaffoldState = rememberScaffoldState()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val authState = loginViewModel.authState.collectAsStateWithLifecycle()
+
+    /*
+    val startDestination = if (authState.value is EstadoAutenticacion.LoggedIn) {
+        Destinos.HomeCasanareVista.ruta
+    } else {
+        Destinos.SplashScreen.ruta
+    }
+     */
 
     // Lista de rutas que NO deben mostrar el Scaffold
     val excludedRoutes = listOf(
@@ -155,12 +162,12 @@ fun NavigationHost(
 
     NavHost(
         navController = navController,
-        startDestination = Destinos.PantallaPresentacion.ruta,
+        startDestination = Destinos.SplashScreen.ruta,
         modifier = Modifier.padding(paddingValues = innerPadding)
     ) {
         // Inicio
         composable(Destinos.SplashScreen.ruta){
-            SplashScreen(navController = navController)
+            SplashScreen(navController = navController, authService = authService)
         }
         composable(Destinos.PantallaPresentacion.ruta){
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
