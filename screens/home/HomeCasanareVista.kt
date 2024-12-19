@@ -65,6 +65,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,6 +91,7 @@ import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
+import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
@@ -107,9 +109,11 @@ import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
@@ -197,6 +201,22 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
             currentRoute != PantallaFormulario.Estudiantes3.ruta &&
             currentRoute != PantallaFormulario.Docentes.ruta
      */
+    val application = LocalContext.current.applicationContext as HomeApplication
+    val rolUsuario = dataStoreManager.getRolUsuario().collectAsState(initial = Rol.USUARIO).value
+    when (rolUsuario) {
+        Rol.USUARIO -> {
+            // Composable para la vista del usuario
+            //UsuarioVista(navController)
+        }
+        Rol.EMISORA -> {
+            // Composable para la vista de la emisora
+            EmisoraVista(
+                navController,
+                viewModel = TODO(),
+            )
+        }
+    }
+
 
 
     var authState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }

@@ -25,11 +25,11 @@ fun CerrarSesionButton(navController: NavHostController, innerPadding: PaddingVa
         application.firebaseAuth
     )
     val loginViewModel: LoginScreenViewModel = viewModel(factory = factory)
-    val authState = loginViewModel.authState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    Button(onClick = {
         loginViewModel.cerrarSesion()
         navController.navigate(Destinos.CasanareLoginScreen.ruta)
+    }) {
+        Text("Cerrar sesión")
     }
-
 }

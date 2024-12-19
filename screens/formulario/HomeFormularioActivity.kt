@@ -78,10 +78,10 @@ import androidx.wear.compose.material.ContentAlpha
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.navigation.NavigationHost
-import com.jcmateus.casanarestereo.screens.formulario.ui.theme.CasanareStereoTheme
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
 import com.jcmateus.casanarestereo.screens.login.AuthService
+import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

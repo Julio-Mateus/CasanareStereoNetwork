@@ -110,7 +110,9 @@ import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.toString
 
 class CasanareLoginActivity : ComponentActivity() {
@@ -172,9 +174,7 @@ fun CasanareLoginScreen(
         try {
             val account = task.getResult(ApiException::class.java)
             val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            viewModel.iniciarSesionConGoogle(context, credential, selectedRol) {
-                navController.navigate(PantallaFormulario.SeleccionRol.ruta)
-            }
+            viewModel.iniciarSesionConGoogle(context, credential, selectedRol)
         } catch (ex: Exception) {
             Log.d("Casanare", "LoginScreen: ${ex.message}")
         }
@@ -228,6 +228,7 @@ fun CasanareLoginScreen(
         locationPermissionGranted = dataStoreManager.getLocationPermissionGranted()
     }
     LaunchedEffect(key1 = authState.value) {
+        Log.d("CasanareLoginScreen", "LaunchedEffect activado. authState: ${authState.value}")
         // Recolectar el valor del StateFlow
         when (authState.value) { // Usar state en el when
             is EstadoAutenticacion.LoggedIn -> {
@@ -660,7 +661,7 @@ fun UserForm(
             onClick = {
                 if (valido) {
                     onDone(email.value.trim(), password.value.trim())
-                    onNavigate() // Llamar a la lambda de navegación
+                    onNavigate() // Llamar a la lambda de navegación directamente
                     keyboardController?.hide()
                 }
             },

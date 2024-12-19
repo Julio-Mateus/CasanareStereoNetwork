@@ -14,12 +14,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class LoginScreenViewModel(
     private val dataStoreManager: DataStoreManager,
@@ -60,7 +62,7 @@ class LoginScreenViewModel(
      */
 
     // Iniciar sesión con Google
-    fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?, home: () -> Unit) {
+    fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?) {
         viewModelScope.launch {
             _isLoading.value = true
             val user = authService.iniciarSesionConCredencialDeGoogle(credential)
@@ -70,7 +72,7 @@ class LoginScreenViewModel(
                 dataStoreManager.saveIsLoggedIn(true)
                 dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                 _successMessage.value = "¡Logueado con éxito!"
-                home()
+
             } else {
                 _errorMessage.value = "Error al iniciar sesión con Google."
             }
