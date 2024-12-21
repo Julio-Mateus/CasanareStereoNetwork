@@ -259,11 +259,11 @@ fun CasanareLoginScreen(
                 if (configuracionInicialCompleta) {
                     // Si es una emisora y el perfil no está completo, navegar a perfil_emisora
                     if (selectedRol == Rol.EMISORA && emisoraViewModel.perfilEmisora.value == PerfilEmisora()) {
-                        navController.navigate("perfil_emisora")
+                        Destinos.FormularioPerfilEmisora.ruta
                     } else {
                         // Si el perfil está completo o es un usuario, navegar a la vista correspondiente
                         val destination = when (selectedRol) {
-                            Rol.EMISORA -> "emisora_vista" // O la ruta para la vista de la emisora
+                            Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
                             Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
                             else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto si selectedRol es nulo
                         }

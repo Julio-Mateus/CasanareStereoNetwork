@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,7 +61,10 @@ import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -78,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -160,6 +165,7 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 @Composable
 fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScreenViewModel, showScaffold: Boolean) {
     Log.d("NavController", "Home: $navController")
+    var expanded by remember { mutableStateOf(false) }
     val dataStoreManager =
         (LocalContext.current.applicationContext as HomeApplication).dataStoreManager
     val viewModel: HomeViewModel = viewModel()
@@ -188,7 +194,7 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
         Destinos.Pantalla1, // Inicio
         Destinos.Pantalla2, // Emisoras
         Destinos.Pantalla8, // Podcast
-        Destinos.Pantalla14, // Preferencias
+        //Destinos.Pantalla14, // Preferencias
     )
     val currentRoute = currentRoute(navController) ?: ""
     /*val shouldShowScaffold = currentRoute != Destinos.PantallaPresentacion.ruta &&
@@ -248,7 +254,7 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
             scaffoldState = scaffoldState,
             bottomBar = {
                 if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(navController, bottomNavDestinations)
+                    NavegacionInferior(navController, bottomNavDestinations, expanded, { expanded = it })
                 }
             },
             topBar = {
@@ -281,7 +287,7 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
                 Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
                 Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
                 Destinos.Pantalla13.ruta -> CerrarSesionButton(navController, innerPadding)
-                Destinos.Pantalla14.ruta -> Preferencias(innerPadding)
+                //Destinos.Pantalla14.ruta -> Preferencias(innerPadding, navController)
                 Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
                 Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
                 Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
@@ -294,8 +300,8 @@ fun HomeCasanareVista(navController: NavHostController, loginViewModel: LoginScr
 fun shouldShowBottomBar(currentRoute: String): Boolean {
     return currentRoute == Destinos.Pantalla1.ruta ||
             currentRoute == Destinos.Pantalla2.ruta ||
-            currentRoute == Destinos.Pantalla8.ruta ||
-            currentRoute == Destinos.Pantalla14.ruta
+            currentRoute == Destinos.Pantalla8.ruta
+            //currentRoute == Destinos.Pantalla14.ruta
 }
 
 fun shouldShowTopBar(currentRoute: String): Boolean {
@@ -325,8 +331,11 @@ fun shouldShowDrawer(currentRoute: String): Boolean {
 @Composable
 fun NavegacionInferior(
     navController: NavHostController,
-    items: List<Destinos>
+    items: List<Destinos>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit
 ) {
+    var iconPosition by remember { mutableStateOf(IntOffset.Zero) }
     BottomAppBar(
         backgroundColor = Color.LightGray,
         modifier = Modifier
@@ -367,6 +376,41 @@ fun NavegacionInferior(
                     },
                     alwaysShowLabel = false
                 )
+            }
+            // Agregar IconButton para el menú desplegable
+            IconButton(onClick = { onExpandedChange(true) }) {
+                androidx.compose.material3.Icon(Icons.Filled.MoreVert, contentDescription = "Menú")
+            }
+            // Menú desplegable
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { onExpandedChange(false) },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surface)
+                    .offset(y = (-48).dp)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Perfil", color = MaterialTheme.colorScheme.onSurface) },
+                    onClick = {
+                        navController.navigate(Destinos.EmisoraVista.ruta)
+                        onExpandedChange(false) // Cerrar el menú después de la navegación
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Configuraciones", color = MaterialTheme.colorScheme.onSurface) },
+                    onClick = {
+                        navController.navigate(Destinos.Pantalla12.ruta)
+                        onExpandedChange(false) // Cerrar el menú después de la navegación
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Cerrar Sesion", color = MaterialTheme.colorScheme.onSurface) },
+                    onClick = {
+                        navController.navigate(Destinos.Pantalla13.ruta)
+                        onExpandedChange(false) // Cerrar el menú después de la navegación
+                    }
+                )
+                // ... (otras opciones del menú) ...
             }
         }
     }

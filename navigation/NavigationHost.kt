@@ -12,7 +12,11 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,6 +69,8 @@ import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
+import com.jcmateus.casanarestereo.screens.usuarios.FormularioPerfilEmisora
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -106,6 +112,7 @@ fun NavigationHost(
     // Función auxiliar para mostrar contenido dentro de un Scaffold
     @Composable
     fun ScaffoldContent(content: @Composable (PaddingValues) -> Unit) {
+        var expanded by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val scaffoldState = rememberScaffoldState()
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -130,14 +137,14 @@ fun NavigationHost(
             Destinos.Pantalla1, // Inicio
             Destinos.Pantalla2, // Emisoras
             Destinos.Pantalla8, // Podcast
-            Destinos.Pantalla14, // Preferencias
+            //Destinos.Pantalla14, // Preferencias
         )
         val currentRoute = currentRoute(navController) ?: ""
         Scaffold(
             scaffoldState = scaffoldState,
             bottomBar = {
                 if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(navController, bottomNavDestinations)
+                    NavegacionInferior(navController, bottomNavDestinations, expanded, { expanded = it })
                 }
             },
             topBar = {
@@ -245,9 +252,14 @@ fun NavigationHost(
         composable(Destinos.Pantalla13.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> CerrarSesionButton(navController, innerPadding) }
         }
-        composable(Destinos.Pantalla14.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> Preferencias(innerPadding) }
+        /*composable(Destinos.Pantalla14.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> Preferencias(
+                innerPadding,
+                navController
+            ) }
         }
+
+         */
 
         // Educativo
         composable(Destinos.Pantalla15.ruta) { backStackEntry ->
@@ -259,6 +271,15 @@ fun NavigationHost(
         composable(Destinos.Pantalla17.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> Mi_Zona(innerPadding) }
         }
+
+        //Emisora
+        composable(Destinos.EmisoraVista.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> EmisoraVista(navController, viewModel()) }
+        }
+        composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> FormularioPerfilEmisora(navController, viewModel()) }
+        }
+
     }
 
 }

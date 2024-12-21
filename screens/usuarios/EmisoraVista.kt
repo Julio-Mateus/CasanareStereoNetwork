@@ -28,13 +28,16 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.compose.rememberImagePainter
 
-
 // Vista del perfil de la emisora
 @Composable
+
 fun EmisoraVista(
     navController: NavHostController,
     viewModel: EmisoraViewModel
 ) {
+    MaterialTheme {
+        EmisoraVista(navController, viewModel)
+    }
     val perfilEmisoraState = viewModel.perfilEmisora.observeAsState(PerfilEmisora())
     val perfilEmisora = perfilEmisoraState.value
 
