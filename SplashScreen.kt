@@ -59,7 +59,9 @@ import com.jcmateus.casanarestereo.screens.login.DataStoreManager
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
+import com.jcmateus.casanarestereo.screens.login.Rol
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -81,8 +83,15 @@ fun SplashScreen(navController: NavHostController, authService: AuthService) {
         when (authState.value) {
             is EstadoAutenticacion.LoggedIn -> {
                 delay(100)
-                // Usuario ha iniciado sesión, navegar a la pantalla principal
-                navController.navigate(Destinos.Pantalla1.ruta)
+                // Verificar si el usuario ha seleccionado un rol
+                val userRole = dataStoreManager.getRolUsuario().first()
+                if (userRole == Rol.USUARIO || userRole == Rol.EMISORA) {
+                    // El usuario ya ha seleccionado un rol, navegar a la pantalla principal
+                    navController.navigate(Destinos.Pantalla1.ruta)
+                } else {
+                    // El usuario no ha seleccionado un rol, navegar a la pantalla de selección de roles
+                    navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+                }
             }
             EstadoAutenticacion.LoggedOut -> {
                 // Usuario no ha iniciado sesión, navegar a la pantalla de inicio de sesión
@@ -90,7 +99,6 @@ fun SplashScreen(navController: NavHostController, authService: AuthService) {
             }
             EstadoAutenticacion.Loading -> {
                 // Mostrar la pantalla de carga mientras se verifica el estado de autenticación
-                //delay(3000) // Retraso para mostrar la pantalla de carga (opcional)
             }
         }
     }

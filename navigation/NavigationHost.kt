@@ -173,7 +173,7 @@ fun NavigationHost(
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
         }
         composable(Destinos.CasanareLoginScreen.ruta){
-            CasanareLoginScreen(navController = navController)
+            CasanareLoginScreen(navController = navController, emisoraViewModel = viewModel() )
 
         }
         // Rutas del formulario
