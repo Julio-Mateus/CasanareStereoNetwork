@@ -14,11 +14,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class LoginScreenViewModel(
     private val dataStoreManager: DataStoreManager,
@@ -48,19 +51,28 @@ class LoginScreenViewModel(
     fun clearSuccessMessage() {
         _successMessage.value = null
     }
+    /*
+    init {
+        viewModelScope.launch {
+                if (dataStoreManager.getIsLoggedIn().first()) {
+                authService.actualizarEstadoAutenticacion()
+            }
+        }
+    }
+     */
 
     // Iniciar sesión con Google
-    fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?, home: () -> Unit) {
+    fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?) {
         viewModelScope.launch {
             _isLoading.value = true
-            val user = authService.iniciarSesionConCredencialDeGoogle(credential)
+            val user = authService.iniciarSesionConGoogle(credential, rol)
             _isLoading.value = false
 
             if (user != null) {
                 dataStoreManager.saveIsLoggedIn(true)
                 dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                 _successMessage.value = "¡Logueado con éxito!"
-                home()
+
             } else {
                 _errorMessage.value = "Error al iniciar sesión con Google."
             }
@@ -71,7 +83,7 @@ class LoginScreenViewModel(
     fun iniciarSesionConCorreoYContrasena(context: Context, email: String, password: String, rol: Rol?, home: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
-            val user = authService.iniciarSesionConCorreoYContrasena(email, password)
+            val user = authService.iniciarSesionConCorreoYContrasena(email, password, rol)
             _isLoading.value = false
 
             if (user != null) {
@@ -115,6 +127,7 @@ class LoginScreenViewModel(
                         dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
                         _successMessage.value = "¡Cuenta creada con éxito!"
                         home()
+                        dataStoreManager.saveTermsAccepted(true) // Guarda que los términos fueron aceptados
                     } else {
                         _errorMessage.value = "Error al crear la cuenta en Firestore."
                     }

@@ -65,6 +65,7 @@ import com.jcmateus.casanarestereo.screens.home.HomeViewModel
 import com.jcmateus.casanarestereo.screens.home.NavegacionInferior
 import com.jcmateus.casanarestereo.screens.home.TopBar
 import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
+import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
@@ -89,12 +90,12 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen(navController: NavHostController) {
-    val loginViewModel =
-        createLoginViewModel(LocalContext.current.applicationContext as HomeApplication)
+    val application = LocalContext.current.applicationContext as HomeApplication
+    val authService = AuthService(application.firebaseAuth) // Acceder a firebaseAuth desde HomeApplication
+    val loginViewModel = createLoginViewModel(application)
 
     CasanareStereoTheme {
-        NavigationHost(navController, PaddingValues(), loginViewModel, formularioViewModel = FormularioViewModel())
-
+        NavigationHost(navController, PaddingValues(), loginViewModel, formularioViewModel = FormularioViewModel(), authService)
     }
 }
 

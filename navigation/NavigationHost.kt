@@ -11,14 +11,17 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
 import com.jcmateus.casanarestereo.screens.formulario.Docentes
@@ -40,6 +43,7 @@ import com.jcmateus.casanarestereo.screens.home.currentRoute
 import com.jcmateus.casanarestereo.screens.home.shouldShowBottomBar
 import com.jcmateus.casanarestereo.screens.home.shouldShowDrawer
 import com.jcmateus.casanarestereo.screens.home.shouldShowTopBar
+import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
@@ -48,7 +52,6 @@ import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Nacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Regionales
 import com.jcmateus.casanarestereo.screens.menus.Podcast
-import com.jcmateus.casanarestereo.screens.menus.Preferencias
 import com.jcmateus.casanarestereo.screens.menus.Programacion
 import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
@@ -61,6 +64,8 @@ import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
+import com.jcmateus.casanarestereo.screens.usuarios.FormularioPerfilEmisora
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -68,16 +73,19 @@ fun NavigationHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
     loginViewModel: LoginScreenViewModel,
-    formularioViewModel: FormularioViewModel
+    formularioViewModel: FormularioViewModel,
+    authService: AuthService
 ) {
     Log.d("NavController", "NavigationHost: $navController")
-    val viewModel: FormularioViewModel = viewModel()
-    val context = LocalContext.current.applicationContext
-    //val application = LocalContext.current.applicationContext as HomeApplication // Ya no es necesario
-    //val showScaffold = application.showScaffold // Ya no es necesario
-    val scope = rememberCoroutineScope()
-    val scaffoldState = rememberScaffoldState()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val authState = loginViewModel.authState.collectAsStateWithLifecycle()
+
+    /*
+    val startDestination = if (authState.value is EstadoAutenticacion.LoggedIn) {
+        Destinos.HomeCasanareVista.ruta
+    } else {
+        Destinos.SplashScreen.ruta
+    }
+     */
 
     // Lista de rutas que NO deben mostrar el Scaffold
     val excludedRoutes = listOf(
@@ -99,6 +107,7 @@ fun NavigationHost(
     // Función auxiliar para mostrar contenido dentro de un Scaffold
     @Composable
     fun ScaffoldContent(content: @Composable (PaddingValues) -> Unit) {
+        var expanded by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         val scaffoldState = rememberScaffoldState()
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -123,14 +132,14 @@ fun NavigationHost(
             Destinos.Pantalla1, // Inicio
             Destinos.Pantalla2, // Emisoras
             Destinos.Pantalla8, // Podcast
-            Destinos.Pantalla14, // Preferencias
+            //Destinos.Pantalla14, // Preferencias
         )
         val currentRoute = currentRoute(navController) ?: ""
         Scaffold(
             scaffoldState = scaffoldState,
             bottomBar = {
                 if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(navController, bottomNavDestinations)
+                    NavegacionInferior(navController, bottomNavDestinations, expanded, { expanded = it })
                 }
             },
             topBar = {
@@ -155,18 +164,18 @@ fun NavigationHost(
 
     NavHost(
         navController = navController,
-        startDestination = Destinos.PantallaPresentacion.ruta,
+        startDestination = Destinos.SplashScreen.ruta,
         modifier = Modifier.padding(paddingValues = innerPadding)
     ) {
         // Inicio
         composable(Destinos.SplashScreen.ruta){
-            SplashScreen(navController = navController)
+            SplashScreen(navController = navController, authService = authService)
         }
         composable(Destinos.PantallaPresentacion.ruta){
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
         }
         composable(Destinos.CasanareLoginScreen.ruta){
-            CasanareLoginScreen(navController = navController)
+            CasanareLoginScreen(navController = navController, emisoraViewModel = viewModel() )
 
         }
         // Rutas del formulario
@@ -195,7 +204,7 @@ fun NavigationHost(
         composable(Destinos.HomeCasanareVista.ruta) {
             // Llama a HomeCasanareVista con shouldShowScaffold
             val shouldShowScaffold = !excludedRoutes.contains(Destinos.HomeCasanareVista.ruta)
-            HomeCasanareVista(navController, loginViewModel, shouldShowScaffold)
+            HomeCasanareVista(navController, shouldShowScaffold)
         }
 
 
@@ -238,9 +247,14 @@ fun NavigationHost(
         composable(Destinos.Pantalla13.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> CerrarSesionButton(navController, innerPadding) }
         }
-        composable(Destinos.Pantalla14.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> Preferencias(innerPadding) }
+        /*composable(Destinos.Pantalla14.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> Preferencias(
+                innerPadding,
+                navController
+            ) }
         }
+
+         */
 
         // Educativo
         composable(Destinos.Pantalla15.ruta) { backStackEntry ->
@@ -252,6 +266,15 @@ fun NavigationHost(
         composable(Destinos.Pantalla17.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> Mi_Zona(innerPadding) }
         }
+
+        //Emisora
+        composable(Destinos.EmisoraVista.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> EmisoraVista(navController, viewModel()) }
+        }
+        composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
+            ScaffoldContent { innerPadding -> FormularioPerfilEmisora(navController, viewModel()) }
+        }
+
     }
 
 }

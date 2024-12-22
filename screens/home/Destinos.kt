@@ -20,7 +20,7 @@ sealed class Destinos(
     data object Pantalla11 : Destinos(R.drawable.youtube_casanare_100, "Casanare Stereo", "pantalla11")
     data object Pantalla12 : Destinos(R.drawable.ajustes1_100, "Configuración", "pantalla12")
     data object Pantalla13 : Destinos(R.drawable.salida1_100, "Cerrar Sesión", "pantalla13")
-    data object Pantalla14 : Destinos(R.drawable.preferencias_50, "Preferencias", "pantalla14")
+    //data object Pantalla14 : Destinos(R.drawable.preferencias_50, "Preferencias", "pantalla14")
     //Acciones
     data object Pantalla15: Destinos( null,"pantalla15", "pantalla15")
     data object Pantalla16: Destinos(null, "pantalla16", "pantalla16")
@@ -29,6 +29,12 @@ sealed class Destinos(
     data object PantallaPresentacion : Destinos( icon = null, title = "Pantalla Presentacion", ruta = "PantallaPresentacion")
     data object HomeCasanareVista : Destinos( icon = null, title = "HomeCasanareVista", ruta = "HomeCasanareVista")
     data object CasanareLoginScreen : Destinos( icon = null, title = "Login", ruta = "CasanareLoginScreen")
+
+    //Emisora
+    data object EmisoraVista : Destinos( icon = null, title = "Emisora", ruta = "EmisoraVista")
+    data object FormularioPerfilEmisora : Destinos( icon = null, title = "FormularioEmisora", ruta = "FormularioPerfilEmisora")
+
+
 
     object SplashScreen : Destinos(null, "SplashScreen", "SplashScreen")
 
