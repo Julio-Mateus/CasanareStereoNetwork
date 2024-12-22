@@ -65,7 +65,7 @@ class LoginScreenViewModel(
     fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?) {
         viewModelScope.launch {
             _isLoading.value = true
-            val user = authService.iniciarSesionConCredencialDeGoogle(credential)
+            val user = authService.iniciarSesionConGoogle(credential, rol)
             _isLoading.value = false
 
             if (user != null) {
@@ -83,7 +83,7 @@ class LoginScreenViewModel(
     fun iniciarSesionConCorreoYContrasena(context: Context, email: String, password: String, rol: Rol?, home: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
-            val user = authService.iniciarSesionConCorreoYContrasena(email, password)
+            val user = authService.iniciarSesionConCorreoYContrasena(email, password, rol)
             _isLoading.value = false
 
             if (user != null) {

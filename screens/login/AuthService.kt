@@ -46,12 +46,28 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
     }
 
     // Iniciar sesión con correo electrónico y contraseña
-    suspend fun iniciarSesionConCorreoYContrasena(email: String, password: String): FirebaseUser? {
+    suspend fun iniciarSesionConCorreoYContrasena(email: String, password: String, selectedRol: Rol?): FirebaseUser? {
         return try {
             val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-            // Actualizar _authState después de iniciar sesión correctamente
-            _authState.value = EstadoAutenticacion.LoggedIn(result.user, null) // O con el rol si lo tienes
-            result.user
+            val user = result.user
+
+            // Verificar si el usuario ya existe en Firestore
+            val userDocument = FirebaseFirestore.getInstance().collection("users").document(user!!.uid).get().await()
+            if (!userDocument.exists()) {
+                // Si el usuario no existe, crear una nueva cuenta
+                val displayName = user.displayName
+                createUser(displayName, selectedRol ?: Rol.USUARIO) // Usar selectedRol o Rol.USUARIO por defecto
+            } else {
+                // Si el usuario ya existe, actualizar el rol si es necesario
+                val currentRol = userDocument.getString("rol")
+                if (currentRol == null && selectedRol != null) {
+                    FirebaseFirestore.getInstance().collection("users").document(user.uid)
+                        .update("rol", selectedRol.name)
+                        .await()
+                }
+            }
+
+            user
         } catch (e: Exception) {
             // Manejar excepciones (por ejemplo, FirebaseAuthInvalidCredentialsException)
             null
@@ -59,19 +75,26 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
     }
 
     // Iniciar sesión con credencial de Google
-    suspend fun iniciarSesionConCredencialDeGoogle(credential: AuthCredential): FirebaseUser? {
+    suspend fun iniciarSesionConGoogle(credential: AuthCredential, selectedRol: Rol?): FirebaseUser? {
         return try {
             val authResult = firebaseAuth.signInWithCredential(credential).await()
             val user = authResult.user
 
             // Verificar si el usuario ya existe en Firestore
             val userDocument = FirebaseFirestore.getInstance().collection("users").document(user!!.uid).get().await()
-            if (!userDocument.exists()) {
+
+            val rol: Rol? = if (!userDocument.exists()) {
                 // Si el usuario no existe, crear una nueva cuenta
                 val displayName = user.displayName
-                val rol = Rol.USUARIO // O el rol que desees asignar por defecto
-                createUser(displayName, rol)
+                createUser(displayName, selectedRol ?: Rol.USUARIO) // Usar selectedRol o Rol.USUARIO por defecto
+                selectedRol ?: Rol.USUARIO // Asignar el rol seleccionado o USUARIO por defecto
+            } else {
+                // Si el usuario ya existe, obtener el rol de Firestore
+                userDocument.getString("rol")?.let { Rol.valueOf(it) } // Convertir a Rol
             }
+
+            // Actualizar el estado de autenticación con el rol
+            _authState.value = EstadoAutenticacion.LoggedIn(user, selectedRol)
 
             user
         } catch (e: Exception) {
@@ -126,7 +149,7 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
             avatarUrl = "",
             quote = "",
             profession = "",
-            rol = rol?.name ?: Rol.USUARIO.name
+            rol = rol?.name ?: Rol.USUARIO.name // Usar rol o Rol.USUARIO por defecto
         )
 
         return try {

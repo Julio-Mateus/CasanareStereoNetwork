@@ -9,7 +9,9 @@ package com.jcmateus.casanarestereo.screens.login
 //import androidx.compose.ui.graphics.ColorFilter
 //import com.google.android.gms.auth.api.signin.GoogleSignIn
 import android.Manifest
+import android.R.attr.data
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -26,7 +28,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import android.provider.Settings
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,10 +37,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -54,8 +53,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -66,9 +63,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -96,10 +91,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -112,10 +106,7 @@ import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.PerfilEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.toString
 
 class CasanareLoginActivity : ComponentActivity() {
     @SuppressLint("ViewModelConstructorInComposable")
@@ -126,7 +117,10 @@ class CasanareLoginActivity : ComponentActivity() {
             (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme {
-                CasanareLoginScreen(navController = navController, emisoraViewModel = EmisoraViewModel())
+                CasanareLoginScreen(
+                    navController = navController,
+                    emisoraViewModel = EmisoraViewModel()
+                )
             }
         }
     }
@@ -176,16 +170,19 @@ fun CasanareLoginScreen(
     //val currentAuthState by authState.collectAsState() // Convertir a State
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
-    ) {
-        val task = getSignedInAccountFromIntent(it.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-            viewModel.iniciarSesionConGoogle(context, credential, selectedRol)
-        } catch (ex: Exception) {
-            Log.d("Casanare", "LoginScreen: ${ex.message}")
+    ) { result -> // Cambiar el nombre del parámetro a 'result'
+        if (result.resultCode == Activity.RESULT_OK) { // Verificar si el resultado es OK
+            val data: Intent? = result.data // Obtener el intent de resultado
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data) // Pasar el intent de resultado
+            try {
+                val account = task.getResult(ApiException::class.java)!!
+                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                viewModel.iniciarSesionConGoogle(context, credential, selectedRol)
+            } catch (e: ApiException) {
+                // Google Sign In failed, update UI appropriately
+                Log.w("Google sign in failed", e)
+            }
         }
-
     }
 
     // Lógica para asegurar que solo se pueda seleccionar un rol a la vez
@@ -251,23 +248,33 @@ fun CasanareLoginScreen(
         locationPermissionGranted = dataStoreManager.getLocationPermissionGranted()
     }
     LaunchedEffect(key1 = authState.value) {
-    Log.d("CasanareLoginScreen", "LaunchedEffect activado. authState: ${authState.value}")
-    when (authState.value) {
-        is EstadoAutenticacion.LoggedIn -> {
-            if (selectedRol != null) { // Verificar si se ha seleccionado un rol
-                // Verificar si la configuración inicial está completa
-                if (configuracionInicialCompleta) {
-                    // Si es una emisora y el perfil no está completo, navegar a perfil_emisora
-                    if (selectedRol == Rol.EMISORA && emisoraViewModel.perfilEmisora.value == PerfilEmisora()) {
-                        Destinos.FormularioPerfilEmisora.ruta
-                    } else {
-                        // Si el perfil está completo o es un usuario, navegar a la vista correspondiente
-                        val destination = when (selectedRol) {
-                            Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
-                            Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
-                            else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto si selectedRol es nulo
+        Log.d("CasanareLoginScreen", "LaunchedEffect activado. authState: ${authState.value}")
+        when (authState.value) {
+            is EstadoAutenticacion.LoggedIn -> {
+                if (selectedRol != null) { // Verificar si se ha seleccionado un rol
+                    // Verificar si la configuración inicial está completa
+                    if (configuracionInicialCompleta) {
+                        // Si es una emisora y el perfil no está completo, navegar a perfil_emisora
+                        if (selectedRol == Rol.EMISORA && emisoraViewModel.perfilEmisora.value == PerfilEmisora()) {
+                            Destinos.FormularioPerfilEmisora.ruta
+                        } else {
+                            // Si el perfil está completo o es un usuario, navegar a la vista correspondiente
+                            val destination = when (selectedRol) {
+                                Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
+                                Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
+                                else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto si selectedRol es nulo
+                            }
+                            navController.navigate(destination) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
-                        navController.navigate(destination) {
+                    } else {
+                        // Si la configuración inicial no está completa, navegar a la pantalla de selección de roles
+                        navController.navigate(PantallaFormulario.SeleccionRol.ruta) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -275,26 +282,18 @@ fun CasanareLoginScreen(
                             restoreState = true
                         }
                     }
-                } else {
-                    // Si la configuración inicial no está completa, navegar a la pantalla de selección de roles
-                    navController.navigate(PantallaFormulario.SeleccionRol.ruta) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
                 }
             }
-        }
-        EstadoAutenticacion.LoggedOut -> {
-            // El usuario no ha iniciado sesión, no se necesita hacer nada aquí
-        }
-        EstadoAutenticacion.Loading -> {
-            // Otros estados (por ejemplo, cargando), puedes mostrar un indicador de progreso si lo deseas
+
+            EstadoAutenticacion.LoggedOut -> {
+                // El usuario no ha iniciado sesión, no se necesita hacer nada aquí
+            }
+
+            EstadoAutenticacion.Loading -> {
+                // Otros estados (por ejemplo, cargando), puedes mostrar un indicador de progreso si lo deseas
+            }
         }
     }
-}
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -443,7 +442,8 @@ fun CasanareLoginScreen(
                     Checkbox(
                         checked = isUsuarioChecked,
                         onCheckedChange = {
-                            isUsuarioChecked = it; isUsuarioCheckedBeforeEmisora = true
+                            isUsuarioChecked = it
+                            selectedRol = if (it) Rol.USUARIO else null
                         },
                         // ... (otros parámetros) ...
                     )
@@ -452,7 +452,8 @@ fun CasanareLoginScreen(
                     Checkbox(
                         checked = isEmisoraChecked,
                         onCheckedChange = {
-                            isEmisoraChecked = it; isUsuarioCheckedBeforeEmisora = false
+                            isEmisoraChecked = it
+                            selectedRol = if (it) Rol.EMISORA else null
                         },
                         // ... (otros parámetros) ...
                     )

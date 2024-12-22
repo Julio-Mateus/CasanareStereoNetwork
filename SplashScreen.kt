@@ -85,6 +85,7 @@ fun SplashScreen(navController: NavHostController, authService: AuthService) {
                 delay(100)
                 // Verificar si el usuario ha seleccionado un rol
                 val userRole = dataStoreManager.getRolUsuario().first()
+                Log.d("SplashScreen", "Rol de usuario recuperado: $userRole")
                 if (userRole == Rol.USUARIO || userRole == Rol.EMISORA) {
                     // El usuario ya ha seleccionado un rol, navegar a la pantalla principal
                     navController.navigate(Destinos.Pantalla1.ruta)

@@ -3,19 +3,19 @@ package com.jcmateus.casanarestereo.screens.usuarios
 
 import android.content.ContentValues.TAG
 import android.util.Log
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlin.io.path.exists
+import com.jcmateus.casanarestereo.screens.home.Destinos
 
 class EmisoraViewModel : ViewModel() {
     private val _perfilEmisora = MutableLiveData(PerfilEmisora())
     val perfilEmisora: LiveData<PerfilEmisora> = _perfilEmisora
 
-    fun actualizarPerfil(perfil: PerfilEmisora) {
+    fun actualizarPerfil(perfil: PerfilEmisora, navController: NavHostController) {
         _perfilEmisora.value = perfil
 
         // Guardar los datos en Firestore
@@ -25,6 +25,7 @@ class EmisoraViewModel : ViewModel() {
             db.collection("emisoras").document(user.uid)
                 .set(perfil)
                 .addOnSuccessListener {
+                    navController.navigate(Destinos.EmisoraVista.ruta)
                     // Los datos se guardaron correctamente
                     // Puedes mostrar un mensaje de éxito al usuario
                 }
@@ -58,5 +59,8 @@ class EmisoraViewModel : ViewModel() {
                     Log.w(TAG, "Error al cargar el perfil de la emisora", e)
                 }
         }
+    }
+    init {
+        cargarPerfilEmisora() // Llamar a la función para cargar los datos
     }
 }

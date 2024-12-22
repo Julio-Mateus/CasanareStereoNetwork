@@ -1,18 +1,27 @@
 package com.jcmateus.casanarestereo.screens.usuarios
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,13 +38,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jcmateus.casanarestereo.screens.home.Destinos
+
 
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,9 +65,9 @@ fun FormularioPerfilEmisora(
 
     var nombreEmisora by remember { mutableStateOf(perfilEmisora.nombre) }
     var descripcionEmisora by remember { mutableStateOf(perfilEmisora.descripcion) }
-    var logoEmisora by remember { mutableStateOf(perfilEmisora.logoUrl) }
     var enlaceEmisora by remember { mutableStateOf(perfilEmisora.enlace) }
     var ciudadEmisora by remember { mutableStateOf(perfilEmisora.ciudad) }
+    var imagenPerfilUri by remember { mutableStateOf(perfilEmisora.imagenPerfilUri) }
 
     Scaffold(
         topBar = {
@@ -77,9 +93,9 @@ fun FormularioPerfilEmisora(
                         val user = FirebaseAuth.getInstance().currentUser
                         if (user != null) {
                             val emisoraData = hashMapOf(
+                                "imagenPerfilUri" to imagenPerfilUri,
                                 "nombre" to nombreEmisora,
                                 "descripcion" to descripcionEmisora,
-                                "logoUrl" to logoEmisora,
                                 "enlace" to enlaceEmisora,
                                 "cuidad" to ciudadEmisora
                             )
@@ -109,6 +125,47 @@ fun FormularioPerfilEmisora(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Sección para la imagen de perfil
+            val painter = painterResource(id = com.jcmateus.casanarestereo.R.drawable.user_pre)
+            var imageUri by remember { mutableStateOf<Uri?>(null) }
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                imageUri = uri
+                imagenPerfilUri = uri.toString()
+                viewModel.actualizarPerfil(perfilEmisora.copy(imagenPerfilUri = imagenPerfilUri), navController)
+            }
+            Box(modifier = Modifier.size(128.dp)) {
+                if (imageUri != null) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Imagen de perfil",
+                        modifier = Modifier
+                            .size(128.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Mostrar una imagen predeterminada si no hay imagen seleccionada
+                    Image(
+                        painter = painter, // Reemplaza con tu imagen predeterminada
+                        contentDescription = "Imagen de perfil predeterminada",
+                        modifier = Modifier
+                            .size(128.dp)
+                            .clip(CircleShape)
+                    )
+                }
+                IconButton(
+                    onClick = { launcher.launch("image/*") },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(48.dp)
+                        .background(Color.LightGray, CircleShape)
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Editar imagen")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             // Campos de entrada para la información de la emisora
             OutlinedTextField(
                 value = nombreEmisora,
@@ -121,13 +178,6 @@ fun FormularioPerfilEmisora(
                 onValueChange = { descripcionEmisora = it },
                 label = { Text("Descripción de la emisora") },
                 modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = logoEmisora,
-                onValueChange = { logoEmisora = it },
-                label = { Text("Logo de la emisora (URL)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
             )
             OutlinedTextField(
                 value = enlaceEmisora,
@@ -152,12 +202,12 @@ fun FormularioPerfilEmisora(
                     PerfilEmisora(
                         nombreEmisora,
                         descripcionEmisora,
-                        logoEmisora,
                         enlaceEmisora,
+                        imagenPerfilUri,
                         ciudadEmisora
-                    )
+                    ),
+                    navController
                 )
-                navController.navigate("emisora_vista")
             }) {
                 Text("Guardar")
             }

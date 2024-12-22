@@ -11,20 +11,17 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
 import com.jcmateus.casanarestereo.screens.formulario.Docentes
@@ -55,12 +52,10 @@ import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Nacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Regionales
 import com.jcmateus.casanarestereo.screens.menus.Podcast
-import com.jcmateus.casanarestereo.screens.menus.Preferencias
 import com.jcmateus.casanarestereo.screens.menus.Programacion
 import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
 import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
-import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Inicio
@@ -209,7 +204,7 @@ fun NavigationHost(
         composable(Destinos.HomeCasanareVista.ruta) {
             // Llama a HomeCasanareVista con shouldShowScaffold
             val shouldShowScaffold = !excludedRoutes.contains(Destinos.HomeCasanareVista.ruta)
-            HomeCasanareVista(navController, loginViewModel, shouldShowScaffold)
+            HomeCasanareVista(navController, shouldShowScaffold)
         }
 
 
