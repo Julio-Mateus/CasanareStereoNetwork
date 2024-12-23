@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.google.android.gms.tasks.Task
@@ -28,6 +29,15 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
 
         guardarPerfilEmisora(perfil, navController)
 
+    }
+    class EmisoraViewModelFactory(private val firebaseAuth: FirebaseAuth) :
+        ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(EmisoraViewModel::class.java)) {
+                return EmisoraViewModel(firebaseAuth) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
+        }
     }
 
     fun actualizarImagenPerfil(imagenUri: Uri) {

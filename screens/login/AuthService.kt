@@ -146,9 +146,10 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
             profession = "",
             rol = rol.toString() // Usar rol o Rol.USUARIO por defecto
         )
+        val collection = if (rol == Rol.EMISORA) "emisoras" else "users"
 
         return try {
-            FirebaseFirestore.getInstance().collection("users")
+            FirebaseFirestore.getInstance().collection(collection)
                 .document(userId)
                 .set(user.toMap()) // Utilizar toMap() para obtener el mapa
                 .await()

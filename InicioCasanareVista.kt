@@ -11,6 +11,7 @@ import androidx.navigation.compose.DialogNavigator
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
 
 
 class HomeApplication : Application() {
@@ -26,6 +27,9 @@ class HomeApplication : Application() {
 
     val dataStoreManager: DataStoreManager by lazy { DataStoreManager(this) } // Instancia única de DataStoreManager
     val authService: AuthService by lazy { AuthService(firebaseAuth) }
+    val emisoraViewModelFactory: EmisoraViewModelFactory by lazy {
+        EmisoraViewModelFactory(firebaseAuth)
+    }
 
     override fun onCreate() {
         super.onCreate()

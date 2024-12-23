@@ -90,7 +90,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -98,12 +100,14 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.PerfilEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
@@ -117,9 +121,12 @@ class CasanareLoginActivity : ComponentActivity() {
             (application as HomeApplication).navController // Obtener navController de la aplicación
         setContent {
             CasanareStereoTheme {
+                val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
+                    factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+                )
                 CasanareLoginScreen(
                     navController = navController,
-                    emisoraViewModel = EmisoraViewModel()
+                    emisoraViewModel = emisoraViewModel
                 )
             }
         }
@@ -834,7 +841,10 @@ fun InputField(
 fun PreviewContent() {
     val context = LocalContext.current
     val navController = remember { NavHostController(context) }
-    CasanareLoginScreen(navController, emisoraViewModel = EmisoraViewModel())
+    val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
+    val viewModelFactory = EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
+    val emisoraViewModel = viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
+    CasanareLoginScreen(navController, emisoraViewModel = emisoraViewModel) // Pasa la instancia de emisoraViewModel a CasanareLoginScreen
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

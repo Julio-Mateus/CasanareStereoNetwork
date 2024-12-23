@@ -17,11 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.google.firebase.auth.FirebaseAuth
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
 import com.jcmateus.casanarestereo.screens.formulario.Docentes
@@ -64,6 +67,8 @@ import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
 import com.jcmateus.casanarestereo.screens.usuarios.FormularioPerfilEmisora
 
@@ -99,6 +104,7 @@ fun NavigationHost(
         PantallaFormulario.Estudiantes3.ruta,
         PantallaFormulario.Docentes.ruta
     )
+
     // Función para determinar si se debe mostrar Scaffold
     fun shouldShowScaffold(route: String): Boolean {
         return !excludedRoutes.contains(route)
@@ -139,7 +145,13 @@ fun NavigationHost(
             scaffoldState = scaffoldState,
             bottomBar = {
                 if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(navController, bottomNavDestinations, expanded, { expanded = it })
+                    NavegacionInferior(
+                        navController,
+                        bottomNavDestinations,
+                        expanded,
+                        { expanded = it },
+                        innerPadding = innerPadding
+                    )
                 }
             },
             topBar = {
@@ -168,15 +180,17 @@ fun NavigationHost(
         modifier = Modifier.padding(paddingValues = innerPadding)
     ) {
         // Inicio
-        composable(Destinos.SplashScreen.ruta){
+        composable(Destinos.SplashScreen.ruta) {
             SplashScreen(navController = navController, authService = authService)
         }
-        composable(Destinos.PantallaPresentacion.ruta){
+        composable(Destinos.PantallaPresentacion.ruta) {
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
         }
-        composable(Destinos.CasanareLoginScreen.ruta){
-            CasanareLoginScreen(navController = navController, emisoraViewModel = viewModel() )
-
+        composable(Destinos.CasanareLoginScreen.ruta) {
+            val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
+                factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+            )
+            CasanareLoginScreen(navController = navController, emisoraViewModel = emisoraViewModel)
         }
         // Rutas del formulario
         composable(PantallaFormulario.SeleccionRol.ruta) {
@@ -268,11 +282,21 @@ fun NavigationHost(
         }
 
         //Emisora
-        composable(Destinos.EmisoraVista.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> EmisoraVista(navController, viewModel()) }
+        composable(Destinos.EmisoraVista.ruta) {
+            val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
+                factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+            )
+            EmisoraVista(navController = navController, emisoraViewModel)
         }
         composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> FormularioPerfilEmisora(navController, viewModel()) }
+            val firebaseAuth = FirebaseAuth.getInstance()
+            val viewModelFactory = EmisoraViewModelFactory(firebaseAuth)
+            val emisoraViewModel: EmisoraViewModel = viewModel(factory = viewModelFactory)
+            ScaffoldContent { innerPadding ->
+                FormularioPerfilEmisora(
+                    navController
+                )
+            }
         }
 
     }

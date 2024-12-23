@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
@@ -26,10 +27,14 @@ fun CerrarSesionButton(navController: NavHostController, innerPadding: PaddingVa
     )
     val loginViewModel: LoginScreenViewModel = viewModel(factory = factory)
 
-    Button(onClick = {
+    // Cerrar sesión y navegar a la pantalla de inicio de sesión
+    LaunchedEffect(key1 = Unit) { // Ejecutar solo una vez
         loginViewModel.cerrarSesion()
-        navController.navigate(Destinos.CasanareLoginScreen.ruta)
-    }) {
-        Text("Cerrar sesión")
+        navController.navigate(Destinos.CasanareLoginScreen.ruta) {
+            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+        }
     }
+
+    // Puedes mostrar un mensaje de "Cerrando sesión..." mientras se completa el proceso
+    Text("Cerrando sesión...")
 }

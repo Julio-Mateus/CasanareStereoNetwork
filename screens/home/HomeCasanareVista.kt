@@ -38,6 +38,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -95,6 +96,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
@@ -119,6 +121,8 @@ import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
@@ -219,10 +223,12 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
         }
 
         Rol.EMISORA -> {
-            // Composable para la vista de la emisora
+            val firebaseAuth = FirebaseAuth.getInstance()
+            val viewModelFactory = EmisoraViewModelFactory(firebaseAuth)
+            val emisoraViewModel: EmisoraViewModel = viewModel(factory = viewModelFactory)
             EmisoraVista(
                 navController,
-                viewModel = TODO(),
+                emisoraViewModel
             )
         }
     }
@@ -258,7 +264,9 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
                         navController,
                         bottomNavDestinations,
                         expanded,
-                        { expanded = it })
+                        { expanded = it },
+                        innerPadding = PaddingValues(0.dp)
+                    )
                 }
             },
             topBar = {
@@ -337,8 +345,19 @@ fun NavegacionInferior(
     navController: NavHostController,
     items: List<Destinos>,
     expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit
+    onExpandedChange: (Boolean) -> Unit,
+    innerPadding: PaddingValues
 ) {
+    var cerrarSesion by remember { mutableStateOf(false) }
+
+    if (cerrarSesion) {
+        CerrarSesionButton(navController, innerPadding)
+        cerrarSesion = false
+    }
+
+    LaunchedEffect(key1 = cerrarSesion) {
+        // No llamar a CerrarSesionButton aquí
+    }
     NavigationBar(
         modifier = Modifier.fillMaxWidth(),
         containerColor = Color.LightGray
@@ -409,8 +428,8 @@ fun NavegacionInferior(
             DropdownMenuItem(
                 text = { Text("Cerrar Sesion", color = MaterialTheme.colorScheme.onSurface) },
                 onClick = {
-                    navController.navigate(Destinos.Pantalla13.ruta)
                     onExpandedChange(false) // Cerrar el menú después de la navegación
+                    cerrarSesion = true
                 }
             )
             // ... (otras opciones del menú) ...

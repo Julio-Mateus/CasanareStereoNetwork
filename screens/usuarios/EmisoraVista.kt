@@ -42,18 +42,24 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
 
 // Vista del perfil de la emisora
 @Composable
 
 fun EmisoraVista(
-    navController: NavHostController,
-    viewModel: EmisoraViewModel
+    navController: NavHostController, emisoraViewModel: EmisoraViewModel
 ) {
-    val perfilEmisoraState = viewModel.perfilEmisora.observeAsState(PerfilEmisora())
+    val emisoraViewModel: EmisoraViewModel = viewModel(
+        factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+    )
+    val perfilEmisoraState = emisoraViewModel.perfilEmisora.observeAsState(PerfilEmisora())
     var perfilEmisora by remember { mutableStateOf(perfilEmisoraState.value) }
 
     LaunchedEffect(key1 = perfilEmisoraState.value) { // Observar cambios en perfilEmisoraState.value
@@ -159,9 +165,11 @@ fun EmisoraVista(
 @Composable
 @Preview
 fun EmisoraVistaPreview() {
+    val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
+    val viewModelFactory = EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
+    val emisoraViewModel = viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
     EmisoraVista(
-        navController = NavHostController(LocalContext.current),
-        viewModel = EmisoraViewModel()
+        navController = NavHostController(LocalContext.current), emisoraViewModel = emisoraViewModel
     )
 }
 

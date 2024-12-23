@@ -46,10 +46,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.home.Destinos
 
@@ -59,10 +61,12 @@ import com.jcmateus.casanarestereo.screens.home.Destinos
 @Composable
 fun FormularioPerfilEmisora(
     navController: NavHostController,
-    viewModel: EmisoraViewModel
 ) {
+    val emisoraViewModel: EmisoraViewModel = viewModel(
+        factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+    )
     val context = LocalContext.current
-    val perfilEmisora by viewModel.perfilEmisora.observeAsState(PerfilEmisora())
+    val perfilEmisora by emisoraViewModel.perfilEmisora.observeAsState(PerfilEmisora())
 
     var nombreEmisora by remember { mutableStateOf(perfilEmisora.nombre) }
     var descripcionEmisora by remember { mutableStateOf(perfilEmisora.descripcion) }
@@ -77,7 +81,7 @@ fun FormularioPerfilEmisora(
         // Manejar la Uri de la imagen seleccionada
         if (uri != null) {
             // Actualizar la imagen de perfil en el ViewModel
-            viewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
+            emisoraViewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
             imagenPerfilUri = uri // Actualizar la variable de estado
         }
     }
@@ -145,13 +149,14 @@ fun FormularioPerfilEmisora(
                 // Manejar la Uri de la imagen seleccionada
                 if (uri != null) {
                     // Actualizar la imagen de perfil en el ViewModel
-                    viewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
+                    emisoraViewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
                     imagenPerfilUri = uri // Actualizar la variable de estado
                 }
             }
             Box(modifier = Modifier.size(128.dp)) {
                 if (imagenPerfilUri != null) {
-                    AsyncImage( // O usa Coil si lo prefieres
+                    AsyncImage(
+                        // O usa Coil si lo prefieres
                         model = imagenPerfilUri, // Usa la variable de estado imagenPerfilUri
                         contentDescription = "Imagen de perfil",
                         modifier = Modifier
@@ -213,7 +218,7 @@ fun FormularioPerfilEmisora(
 
             // Botón para guardar los cambios
             Button(onClick = {
-                viewModel.actualizarPerfil(
+                emisoraViewModel.actualizarPerfil(
                     PerfilEmisora(
                         nombreEmisora,
                         descripcionEmisora,
@@ -235,5 +240,5 @@ fun FormularioPerfilEmisora(
 @Preview
 fun PerfilEmisoraPreview() {
     val firebaseAuth = FirebaseAuth.getInstance() // Crear instancia de FirebaseAuth
-    FormularioPerfilEmisora(navController = NavHostController(LocalContext.current), viewModel = EmisoraViewModel(firebaseAuth))
+    FormularioPerfilEmisora(navController = NavHostController(LocalContext.current))
 }
