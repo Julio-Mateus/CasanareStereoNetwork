@@ -1,20 +1,15 @@
 package com.jcmateus.casanarestereo.screens.login
 
-import android.annotation.SuppressLint
 import android.util.Log
 import android.util.Patterns
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.auth.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
-import kotlin.collections.toMap
-import kotlin.text.get
-import kotlin.text.set
 
 class AuthService(private val firebaseAuth: FirebaseAuth) {
 
@@ -56,13 +51,13 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
             if (!userDocument.exists()) {
                 // Si el usuario no existe, crear una nueva cuenta
                 val displayName = user.displayName
-                createUser(displayName, selectedRol ?: Rol.USUARIO) // Usar selectedRol o Rol.USUARIO por defecto
+                createUser(displayName, selectedRol) // Usar selectedRol o Rol.USUARIO por defecto
             } else {
                 // Si el usuario ya existe, actualizar el rol si es necesario
                 val currentRol = userDocument.getString("rol")
-                if (currentRol == null && selectedRol != null) {
+                if (currentRol == null) {
                     FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                        .update("rol", selectedRol.name)
+                        .update("rol", selectedRol?.name)
                         .await()
                 }
             }
@@ -86,8 +81,8 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
             val rol: Rol? = if (!userDocument.exists()) {
                 // Si el usuario no existe, crear una nueva cuenta
                 val displayName = user.displayName
-                createUser(displayName, selectedRol ?: Rol.USUARIO) // Usar selectedRol o Rol.USUARIO por defecto
-                selectedRol ?: Rol.USUARIO // Asignar el rol seleccionado o USUARIO por defecto
+                createUser(displayName, selectedRol) // Usar selectedRol o Rol.USUARIO por defecto
+                selectedRol // Asignar el rol seleccionado o USUARIO por defecto
             } else {
                 // Si el usuario ya existe, obtener el rol de Firestore
                 userDocument.getString("rol")?.let { Rol.valueOf(it) } // Convertir a Rol
@@ -149,7 +144,7 @@ class AuthService(private val firebaseAuth: FirebaseAuth) {
             avatarUrl = "",
             quote = "",
             profession = "",
-            rol = rol?.name ?: Rol.USUARIO.name // Usar rol o Rol.USUARIO por defecto
+            rol = rol.toString() // Usar rol o Rol.USUARIO por defecto
         )
 
         return try {

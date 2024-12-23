@@ -91,7 +91,7 @@ fun SplashScreen(navController: NavHostController, authService: AuthService) {
                     navController.navigate(Destinos.Pantalla1.ruta)
                 } else {
                     // El usuario no ha seleccionado un rol, navegar a la pantalla de selección de roles
-                    navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+                    //navController.navigate(PantallaFormulario.SeleccionRol.ruta)
                 }
             }
             EstadoAutenticacion.LoggedOut -> {

@@ -2,27 +2,63 @@ package com.jcmateus.casanarestereo.screens.usuarios
 
 
 import android.content.ContentValues.TAG
+import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.launch
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
+import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.UploadTask
 import com.jcmateus.casanarestereo.screens.home.Destinos
 
-class EmisoraViewModel : ViewModel() {
+import kotlin.text.set
+
+class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
     private val _perfilEmisora = MutableLiveData(PerfilEmisora())
     val perfilEmisora: LiveData<PerfilEmisora> = _perfilEmisora
 
     fun actualizarPerfil(perfil: PerfilEmisora, navController: NavHostController) {
         _perfilEmisora.value = perfil
 
-        // Guardar los datos en Firestore
-        val db = FirebaseFirestore.getInstance()
-        val user = FirebaseAuth.getInstance().currentUser
-        if (user != null) {
-            db.collection("emisoras").document(user.uid)
+        guardarPerfilEmisora(perfil, navController)
+
+    }
+
+    fun actualizarImagenPerfil(imagenUri: Uri) {
+        val storageRef = FirebaseStorage.getInstance().reference.child("images/${firebaseAuth.currentUser?.uid}")
+        val uploadTask = storageRef.putFile(imagenUri)
+
+        uploadTask.addOnCompleteListener { task: Task<UploadTask.TaskSnapshot> -> // Especificar el tipo
+            if (task.isSuccessful) { // Acceder a isSuccessful correctamente
+                storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
+                    val userId = firebaseAuth.currentUser?.uid ?: return@addOnSuccessListener
+                    FirebaseFirestore.getInstance().collection("emisoras").document(userId)
+                        .update("imagenPerfilUri", downloadUri.toString())
+                        .addOnSuccessListener {
+                            _perfilEmisora.value = _perfilEmisora.value?.copy(imagenPerfilUri = downloadUri.toString())
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w(TAG, "Error al actualizar la Uri de la imagen", e)
+                        }
+                }
+            } else {
+                Log.w(TAG, "Error al subir la imagen", task.exception) // Acceder a exception correctamente
+            }
+            return@addOnCompleteListener // Agregar return
+        }
+    }
+
+    private fun guardarPerfilEmisora(perfil: PerfilEmisora, navController: NavHostController) {
+        viewModelScope.launch {
+            val userId = firebaseAuth.currentUser?.uid ?: return@launch
+
+            FirebaseFirestore.getInstance().collection("emisoras").document(userId)
                 .set(perfil)
                 .addOnSuccessListener {
                     navController.navigate(Destinos.EmisoraVista.ruta)

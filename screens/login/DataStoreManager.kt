@@ -40,7 +40,7 @@ class DataStoreManager(private val context: Context) {
     }
 
     fun getTermsAccepted(): Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[TERMS_ACCEPTED] ?: false
+        preferences[TERMS_ACCEPTED] == true
     }
 
     suspend fun saveTermsAccepted(accepted: Boolean) {
@@ -89,7 +89,7 @@ class DataStoreManager(private val context: Context) {
     }
 
     suspend fun getLocationPermissionGranted(): Boolean {
-        return context.dataStore.data.first()[LOCATION_PERMISSION_GRANTED] ?: false
+        return context.dataStore.data.first()[LOCATION_PERMISSION_GRANTED] == true
     }
 
     suspend fun setShowDialog(value: Boolean) {
@@ -99,7 +99,6 @@ class DataStoreManager(private val context: Context) {
     }
 
     suspend fun getShowDialog(): Boolean {
-        return context.dataStore.data.first()[SHOW_DIALOG]
-            ?: true // Mostrar por defecto la primera vez
+        return context.dataStore.data.first()[SHOW_DIALOG] != false // Mostrar por defecto la primera vez
     }
 }

@@ -50,6 +50,7 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.home.Destinos
 
 
@@ -67,7 +68,19 @@ fun FormularioPerfilEmisora(
     var descripcionEmisora by remember { mutableStateOf(perfilEmisora.descripcion) }
     var enlaceEmisora by remember { mutableStateOf(perfilEmisora.enlace) }
     var ciudadEmisora by remember { mutableStateOf(perfilEmisora.ciudad) }
-    var imagenPerfilUri by remember { mutableStateOf(perfilEmisora.imagenPerfilUri) }
+    var imagenPerfilUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Launcher para la selección de imagen
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        // Manejar la Uri de la imagen seleccionada
+        if (uri != null) {
+            // Actualizar la imagen de perfil en el ViewModel
+            viewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
+            imagenPerfilUri = uri // Actualizar la variable de estado
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -93,7 +106,7 @@ fun FormularioPerfilEmisora(
                         val user = FirebaseAuth.getInstance().currentUser
                         if (user != null) {
                             val emisoraData = hashMapOf(
-                                "imagenPerfilUri" to imagenPerfilUri,
+                                "imagenPerfilUri" to imagenPerfilUri?.toString(),
                                 "nombre" to nombreEmisora,
                                 "descripcion" to descripcionEmisora,
                                 "enlace" to enlaceEmisora,
@@ -126,29 +139,31 @@ fun FormularioPerfilEmisora(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Sección para la imagen de perfil
-            val painter = painterResource(id = com.jcmateus.casanarestereo.R.drawable.user_pre)
-            var imageUri by remember { mutableStateOf<Uri?>(null) }
             val launcher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.GetContent()
             ) { uri: Uri? ->
-                imageUri = uri
-                imagenPerfilUri = uri.toString()
-                viewModel.actualizarPerfil(perfilEmisora.copy(imagenPerfilUri = imagenPerfilUri), navController)
+                // Manejar la Uri de la imagen seleccionada
+                if (uri != null) {
+                    // Actualizar la imagen de perfil en el ViewModel
+                    viewModel.actualizarImagenPerfil(uri) // Asegúrate de que esta función esté definida en tu ViewModel
+                    imagenPerfilUri = uri // Actualizar la variable de estado
+                }
             }
             Box(modifier = Modifier.size(128.dp)) {
-                if (imageUri != null) {
-                    AsyncImage(
-                        model = imageUri,
+                if (imagenPerfilUri != null) {
+                    AsyncImage( // O usa Coil si lo prefieres
+                        model = imagenPerfilUri, // Usa la variable de estado imagenPerfilUri
                         contentDescription = "Imagen de perfil",
                         modifier = Modifier
                             .size(128.dp)
                             .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        // Puedes agregar un error y un placeholder si lo deseas
                     )
                 } else {
                     // Mostrar una imagen predeterminada si no hay imagen seleccionada
                     Image(
-                        painter = painter, // Reemplaza con tu imagen predeterminada
+                        painter = painterResource(id = R.drawable.user_pre), // Reemplaza con tu imagen predeterminada
                         contentDescription = "Imagen de perfil predeterminada",
                         modifier = Modifier
                             .size(128.dp)
@@ -203,7 +218,7 @@ fun FormularioPerfilEmisora(
                         nombreEmisora,
                         descripcionEmisora,
                         enlaceEmisora,
-                        imagenPerfilUri,
+                        imagenPerfilUri.toString(),
                         ciudadEmisora
                     ),
                     navController
@@ -219,5 +234,6 @@ fun FormularioPerfilEmisora(
 @Composable
 @Preview
 fun PerfilEmisoraPreview() {
-    FormularioPerfilEmisora(navController = NavHostController(LocalContext.current), viewModel = EmisoraViewModel())
+    val firebaseAuth = FirebaseAuth.getInstance() // Crear instancia de FirebaseAuth
+    FormularioPerfilEmisora(navController = NavHostController(LocalContext.current), viewModel = EmisoraViewModel(firebaseAuth))
 }
