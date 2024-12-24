@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,21 +17,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +51,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -66,13 +76,31 @@ fun FormularioPerfilEmisora(
         factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
     )
     val context = LocalContext.current
-    val perfilEmisora by emisoraViewModel.perfilEmisora.observeAsState(PerfilEmisora())
+    val perfilEmisora by emisoraViewModel.perfilEmisora.collectAsState()
 
-    var nombreEmisora by remember { mutableStateOf(perfilEmisora.nombre) }
-    var descripcionEmisora by remember { mutableStateOf(perfilEmisora.descripcion) }
-    var enlaceEmisora by remember { mutableStateOf(perfilEmisora.enlace) }
-    var ciudadEmisora by remember { mutableStateOf(perfilEmisora.ciudad) }
+    var nombreEmisora by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var descripcionEmisora by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var enlaceEmisora by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var paginaWebEmisora by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var ciudadEmisora by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var departamento by remember { mutableStateOf("") } // Inicializar con valor vacío
+    var frecuencia by remember { mutableStateOf("") } // Inicializar con valor vacío
     var imagenPerfilUri by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(key1 = perfilEmisora) {
+        nombreEmisora = perfilEmisora.nombre
+        descripcionEmisora = perfilEmisora.descripcion
+        enlaceEmisora = perfilEmisora.enlace
+        paginaWebEmisora = perfilEmisora.paginaWeb
+        ciudadEmisora = perfilEmisora.ciudad
+        departamento = perfilEmisora.departamento
+        frecuencia = perfilEmisora.frecuencia
+        imagenPerfilUri = if (perfilEmisora.imagenPerfilUri.isNotBlank()) {
+            Uri.parse(perfilEmisora.imagenPerfilUri)
+        } else {
+            Uri.parse("android.resource://${context.packageName}/${R.drawable.user_pre}") // URI de la imagen predeterminada
+        }
+    }
 
     // Launcher para la selección de imagen
     val launcher = rememberLauncherForActivityResult(
@@ -101,34 +129,30 @@ fun FormularioPerfilEmisora(
                         // Validación de datos (ejemplo: nombre no vacío)
                         if (nombreEmisora.isBlank()) {
                             // Mostrar un mensaje de error al usuario
-                            Toast.makeText(context, "El nombre de la emisora no puede estar vacío", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "El nombre de la emisora no puede estar vacío",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             return@IconButton
                         }
 
                         // Guardar los cambios en Firestore
-                        val db = FirebaseFirestore.getInstance()
-                        val user = FirebaseAuth.getInstance().currentUser
-                        if (user != null) {
-                            val emisoraData = hashMapOf(
-                                "imagenPerfilUri" to imagenPerfilUri?.toString(),
-                                "nombre" to nombreEmisora,
-                                "descripcion" to descripcionEmisora,
-                                "enlace" to enlaceEmisora,
-                                "cuidad" to ciudadEmisora
-                            )
-                            db.collection("emisoras").document(user.uid)
-                                .set(emisoraData)
-                                .addOnSuccessListener {
-                                    // Los datos se guardaron correctamente
-                                    navController.popBackStack() // Regresar a la pantalla anterior
-                                }
-                                .addOnFailureListener { e ->
-                                    // Error al guardar los datos
-                                    // Manejar el error aquí
-                                    Toast.makeText(context, "Error al guardar los datos", Toast.LENGTH_SHORT).show()
-                                    Log.w("FormularioPerfilEmisora", "Error al guardar el perfil de la emisora", e)
-                                }
-                        }
+                        // Guardar los cambios utilizando la función actualizarPerfil del ViewModel
+                        emisoraViewModel.actualizarPerfil(
+                            PerfilEmisora(
+                                nombre = nombreEmisora, // Asignar nombreEmisora al campo nombre
+                                descripcion = descripcionEmisora, // Asignar descripcionEmisora al campo descripcion
+                                imagenPerfilUri = imagenPerfilUri?.toString()
+                                    ?: "", // Asignar imagenPerfilUri al campo imagenPerfilUri
+                                enlace = enlaceEmisora,
+                                paginaWeb = paginaWebEmisora,
+                                ciudad = ciudadEmisora,
+                                departamento = departamento,
+                                frecuencia = frecuencia
+                            ),
+                            navController
+                        )
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
                     }
@@ -139,8 +163,10 @@ fun FormularioPerfilEmisora(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Sección para la imagen de perfil
             val launcher = rememberLauncherForActivityResult(
@@ -191,45 +217,109 @@ fun FormularioPerfilEmisora(
                 value = nombreEmisora,
                 onValueChange = { nombreEmisora = it },
                 label = { Text("Nombre de la emisora") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
             )
             OutlinedTextField(
                 value = descripcionEmisora,
                 onValueChange = { descripcionEmisora = it },
                 label = { Text("Descripción de la emisora") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
+            )
+            OutlinedTextField(
+                value = paginaWebEmisora,
+                onValueChange = { paginaWebEmisora = it },
+                label = { Text("Enlace de la emisora (URL)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
             )
             OutlinedTextField(
                 value = enlaceEmisora,
                 onValueChange = { enlaceEmisora = it },
-                label = { Text("Enlace de la emisora (URL)") },
+                label = { Text("Enlace de la trasmision vivo") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
+            )
+            OutlinedTextField(
+                value = departamento,
+                onValueChange = { departamento = it },
+                label = { Text("Departamento") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
             )
             OutlinedTextField(
                 value = ciudadEmisora,
                 onValueChange = { ciudadEmisora = it },
                 label = { Text("Ciudad de la emisora") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next // Flecha de "siguiente"
+                )
+            )
+            OutlinedTextField(
+                value = frecuencia,
+                onValueChange = { frecuencia = it },
+                label = { Text("Frecuencia") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Done // Botón de "listo"
+                )
             )
             // ... otros campos de entrada ...
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Botón para guardar los cambios
-            Button(onClick = {
-                emisoraViewModel.actualizarPerfil(
-                    PerfilEmisora(
-                        nombreEmisora,
-                        descripcionEmisora,
-                        enlaceEmisora,
-                        imagenPerfilUri.toString(),
-                        ciudadEmisora
-                    ),
-                    navController
+            Button(
+                onClick = {
+                    emisoraViewModel.actualizarPerfil(
+                        PerfilEmisora(
+                            nombre = nombreEmisora, // Asignar nombreEmisora al campo nombre
+                            descripcion = descripcionEmisora, // Asignar descripcionEmisora al campo descripcion
+                            imagenPerfilUri = imagenPerfilUri?.toString()
+                                ?: "", // Asignar imagenPerfilUri al campo imagenPerfilUri
+                            enlace = enlaceEmisora,
+                            paginaWeb = paginaWebEmisora,
+                            ciudad = ciudadEmisora,
+                            departamento = departamento,
+                            frecuencia = frecuencia
+                        ),
+                        navController
+                    )
+                }, modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
                 )
-            }) {
-                Text("Guardar")
+            ) {
+                Text("Guardar", color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }

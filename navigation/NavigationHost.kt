@@ -286,12 +286,11 @@ fun NavigationHost(
             val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
                 factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
             )
-            EmisoraVista(navController = navController, emisoraViewModel)
+            ScaffoldContent { innerPadding ->
+                EmisoraVista(navController = navController, emisoraViewModel)
+            }
         }
         composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
-            val firebaseAuth = FirebaseAuth.getInstance()
-            val viewModelFactory = EmisoraViewModelFactory(firebaseAuth)
-            val emisoraViewModel: EmisoraViewModel = viewModel(factory = viewModelFactory)
             ScaffoldContent { innerPadding ->
                 FormularioPerfilEmisora(
                     navController

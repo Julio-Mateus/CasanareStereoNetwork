@@ -17,12 +17,16 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.UploadTask
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 import kotlin.text.set
+import kotlin.toString
 
 class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
-    private val _perfilEmisora = MutableLiveData(PerfilEmisora())
-    val perfilEmisora: LiveData<PerfilEmisora> = _perfilEmisora
+    private val _perfilEmisora = MutableStateFlow(PerfilEmisora()) // Cambiar a MutableStateFlow
+    val perfilEmisora: StateFlow<PerfilEmisora> = _perfilEmisora.asStateFlow() // Exponer como StateFlow
 
     fun actualizarPerfil(perfil: PerfilEmisora, navController: NavHostController) {
         _perfilEmisora.value = perfil
@@ -44,33 +48,56 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
         val storageRef = FirebaseStorage.getInstance().reference.child("images/${firebaseAuth.currentUser?.uid}")
         val uploadTask = storageRef.putFile(imagenUri)
 
-        uploadTask.addOnCompleteListener { task: Task<UploadTask.TaskSnapshot> -> // Especificar el tipo
-            if (task.isSuccessful) { // Acceder a isSuccessful correctamente
+        uploadTask.addOnCompleteListener { task: Task<UploadTask.TaskSnapshot> ->
+            if (task.isSuccessful) {
                 storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                     val userId = firebaseAuth.currentUser?.uid ?: return@addOnSuccessListener
+                    val emisoraData = hashMapOf(
+                        "imagenPerfilUri" to downloadUri.toString(),
+                        "nombre" to perfilEmisora.value?.nombre, // Obtener los demás campos del perfil actual
+                        "descripcion" to perfilEmisora.value?.descripcion,
+                        "enlace" to perfilEmisora.value?.enlace,
+                        "paginaWeb" to perfilEmisora.value?.paginaWeb,
+                        "ciudad" to perfilEmisora.value?.ciudad,
+                        "departamento" to perfilEmisora.value?.departamento,
+                        "frecuencia" to perfilEmisora.value?.frecuencia
+                    )
                     FirebaseFirestore.getInstance().collection("emisoras").document(userId)
-                        .update("imagenPerfilUri", downloadUri.toString())
+                        .set(emisoraData) // Usar set para actualizar todos los campos
                         .addOnSuccessListener {
-                            _perfilEmisora.value = _perfilEmisora.value?.copy(imagenPerfilUri = downloadUri.toString())
+                            _perfilEmisora.value = _perfilEmisora.value.copy(imagenPerfilUri = downloadUri.toString())
                         }
                         .addOnFailureListener { e ->
                             Log.w(TAG, "Error al actualizar la Uri de la imagen", e)
                         }
                 }
             } else {
-                Log.w(TAG, "Error al subir la imagen", task.exception) // Acceder a exception correctamente
+                Log.w(TAG, "Error al subir la imagen", task.exception)
             }
-            return@addOnCompleteListener // Agregar return
+            return@addOnCompleteListener
         }
     }
 
     private fun guardarPerfilEmisora(perfil: PerfilEmisora, navController: NavHostController) {
         viewModelScope.launch {
             val userId = firebaseAuth.currentUser?.uid ?: return@launch
+            Log.d(TAG, "Guardando perfil de emisora: $perfil")
+
+            val emisoraData = hashMapOf(
+                "imagenPerfilUri" to perfil.imagenPerfilUri,
+                "nombre" to perfil.nombre,
+                "descripcion" to perfil.descripcion,
+                "enlace" to perfil.enlace,
+                "paginaWeb" to perfil.paginaWeb,
+                "ciudad" to perfil.ciudad,
+                "departamento" to perfil.departamento,
+                "frecuencia" to perfil.frecuencia
+            )
 
             FirebaseFirestore.getInstance().collection("emisoras").document(userId)
-                .set(perfil)
+                .set(emisoraData) // Usar emisoraData en lugar de perfil
                 .addOnSuccessListener {
+                    Log.d(TAG, "Perfil de emisora guardado correctamente")
                     navController.navigate(Destinos.EmisoraVista.ruta)
                     // Los datos se guardaron correctamente
                     // Puedes mostrar un mensaje de éxito al usuario
@@ -93,7 +120,9 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
                 .addOnSuccessListener { document ->
                     if (document != null && document.exists()) {
                         val perfil = document.toObject(PerfilEmisora::class.java)
-                        _perfilEmisora.value = perfil
+                        if (perfil != null) {
+                            _perfilEmisora.value = perfil
+                        }
                     } else {
                         // El documento no existe, puedes crear un nuevo perfil de emisora
                         // o manejar la situación de otra manera

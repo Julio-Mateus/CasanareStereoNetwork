@@ -1,12 +1,25 @@
 package com.jcmateus.casanarestereo.screens.usuarios
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.MotionEvent
+import androidx.activity.result.launch
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,115 +28,225 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import com.jcmateus.casanarestereo.R
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
+import kotlinx.coroutines.delay
+import kotlin.random.Random
+
 
 // Vista del perfil de la emisora
 @Composable
-
 fun EmisoraVista(
-    navController: NavHostController, emisoraViewModel: EmisoraViewModel
+    navController: NavHostController,
+    emisoraViewModel: EmisoraViewModel
 ) {
     val emisoraViewModel: EmisoraViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
     )
-    val perfilEmisoraState = emisoraViewModel.perfilEmisora.observeAsState(PerfilEmisora())
-    var perfilEmisora by remember { mutableStateOf(perfilEmisoraState.value) }
 
-    LaunchedEffect(key1 = perfilEmisoraState.value) { // Observar cambios en perfilEmisoraState.value
-        perfilEmisora = perfilEmisoraState.value // Actualizar perfilEmisora cuando cambie
-    }
+    val perfilEmisora by emisoraViewModel.perfilEmisora.collectAsState()
+    var isPlaying by remember { mutableStateOf(false) }
 
-    Scaffold { innerPadding ->
+    // Botón de reproducción
+    val context = LocalContext.current
+    val exoPlayer = remember { ExoPlayer.Builder(context).build() }
+
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Destinos.FormularioPerfilEmisora.ruta) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Filled.Edit, contentDescription = "Editar perfil")
+            }
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()), // Scroll habilitado
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Sección del perfil
-            Row(
+            // Sección del perfil (imagen e información)
+            if (perfilEmisora.imagenPerfilUri.isNotBlank()) {
+                AsyncImage(
+                    model = Uri.parse(perfilEmisora.imagenPerfilUri),
+                    contentDescription = "Imagen de perfil",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.Red, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.user_pre),
+                    contentDescription = "Imagen de perfil predeterminada",
+                    modifier = Modifier
+                        .size(200.dp)
+                        .clip(CircleShape)
+                        .border(5.dp, Color.Red, CircleShape)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (perfilEmisora.imagenPerfilUri != null) {
-                    AsyncImage(
-                        model = perfilEmisora.imagenPerfilUri,
-                        contentDescription = "Imagen de perfil",
-                        modifier = Modifier
-                            .size(128.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, Color.Gray, CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }else {
-                    // Mostrar una imagen predeterminada si no hay imagen de perfil
-                    Image(
-                        painter = painterResource(id = com.jcmateus.casanarestereo.R.drawable.user_pre), // Reemplaza con tu imagen predeterminada
-                        contentDescription = "Imagen de perfil predeterminada",
-                        modifier = Modifier
-                            .size(128.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, Color.Gray, CircleShape)
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
+                Text(
+                    text = perfilEmisora.nombre,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 35.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.surface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = perfilEmisora.descripcion,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.surface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = perfilEmisora.paginaWeb,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.surface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = perfilEmisora.nombre,
-                        style = MaterialTheme.typography.titleLarge
+                        text = perfilEmisora.departamento,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.surface
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Divider(
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .height(1.dp)
+                            .width(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = perfilEmisora.ciudad,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.surface
                     )
-                    Text(
-                        text = perfilEmisora.descripcion,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = perfilEmisora.frecuencia,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.surface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Button(
+                    onClick = {
+                        isPlaying = !isPlaying
+                        if (isPlaying) {
+                            val mediaItem = MediaItem.fromUri(perfilEmisora.enlace)
+                            exoPlayer.setMediaItem(mediaItem)
+                            exoPlayer.prepare()
+                            exoPlayer.play()
+                        } else {
+                            exoPlayer.pause()
+                        }
+                    },
+                    modifier = Modifier
+                        .wrapContentSize(Alignment.Center)
+                        .padding(8.dp)
+                ) {
+                    Box {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                            modifier = Modifier
+                                .size(38.dp)
+                                .align(Alignment.Center)
+                        )
+                        if (isPlaying) {
+                            PlaybackWaves(isPlaying, waveSize = 60.dp, modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(66.dp))
 
-            // Sección de cards
+            // Cards
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                columns = GridCells.Adaptive(minSize = 128.dp),
+                modifier = Modifier.weight(1f, fill = false), // fill = false para evitar que ocupe todo el espacio
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 items(
                     listOf(
@@ -142,21 +265,60 @@ fun EmisoraVista(
                                 true
                             }
                             .clickable { navController.navigate(route) },
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 9.dp else 8.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 9.dp else 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Text(text = text, modifier = Modifier.padding(18.dp))
+                        Text(
+                            text = text,
+                            modifier = Modifier.padding(18.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center // Centrar el texto
+                        )
                     }
                 }
             }
-            // Agrega más cards para podcast, programa, banner, etc.
-            // ...
+        }
+    }
 
-            Spacer(modifier = Modifier.height(17.dp))
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+}
 
-            // Sección para editar la información
-            Button(onClick = { navController.navigate(Destinos.FormularioPerfilEmisora.ruta) }) {
-                Text("Editar perfil")
+@Composable
+fun PlaybackWaves(isPlaying: Boolean, waveSize: Dp, modifier: Modifier = Modifier) {
+    val waveHeights = remember { mutableStateListOf<Float>() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Inicializar waveHeights con valores aleatorios
+    LaunchedEffect(Unit) {
+        repeat(10) { // Ajusta el número de palitos
+            waveHeights.add(Random.nextFloat() * 40f) // Ajusta la altura máxima
+        }
+    }
+
+    LaunchedEffect(key1 = isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                waveHeights.forEachIndexed { index, _ ->
+                    waveHeights[index] = Random.nextFloat() * 40f
+                }
+                delay(50) // Ajusta la duración de la animación
             }
+        }
+    }
+
+    Canvas(modifier = Modifier.size(waveSize)) {
+        val barWidth = size.width / waveHeights.size
+        waveHeights.forEachIndexed { index, height ->
+            drawRect(
+                color = Color.White, // Cambia el color si es necesario
+                topLeft = Offset(index * barWidth, size.height - height),
+                size = Size(barWidth, height)
+            )
         }
     }
 }
@@ -166,8 +328,10 @@ fun EmisoraVista(
 @Preview
 fun EmisoraVistaPreview() {
     val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
-    val viewModelFactory = EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
-    val emisoraViewModel = viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
+    val viewModelFactory =
+        EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
+    val emisoraViewModel =
+        viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
     EmisoraVista(
         navController = NavHostController(LocalContext.current), emisoraViewModel = emisoraViewModel
     )

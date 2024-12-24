@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,24 +109,29 @@ class LoginScreenViewModel(
                     return@launch
                 }
 
-                // Crear usuario en Firebase Authentication
-                val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await() // Assuming firebaseAuth is accessible
-                if (authResult.user != null) {
-                    val displayName = authResult.user?.email?.split("@")?.get(0)
+                try {
+                    // Crear usuario en Firebase Authentication
+                    val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+                    if (authResult.user != null) {
+                        val displayName = authResult.user?.email?.split("@")?.get(0)
 
-                    // Crear usuario en Firestore usando AuthService
-                    val userCreated = authService.createUser(displayName, rol)
+                        // Crear usuario en Firestore usando AuthService
+                        val userCreated = authService.createUser(displayName, rol)
 
-                    if (userCreated) {
-                        dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
-                        _successMessage.value = "¡Cuenta creada con éxito!"
-                        home()
-                        dataStoreManager.saveTermsAccepted(true) // Guarda que los términos fueron aceptados
+                        if (userCreated) {
+                            dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
+                            _successMessage.value = "¡Cuenta creada con éxito!"
+                            home()
+                            dataStoreManager.saveTermsAccepted(true)
+                        } else {
+                            _errorMessage.value = "Error al crear la cuenta en Firestore."
+                        }
                     } else {
-                        _errorMessage.value = "Error al crear la cuenta en Firestore."
+                        _errorMessage.value = "Error al crear la cuenta en Firebase Authentication."
                     }
-                } else {
-                    _errorMessage.value = "Error al crear la cuenta en Firebase Authentication."
+                } catch (e: FirebaseAuthUserCollisionException) {
+                    // La dirección de correo electrónico ya está en uso
+                    _errorMessage.value = "La dirección de correo electrónico ya está en uso"
                 }
             } else {
                 _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
