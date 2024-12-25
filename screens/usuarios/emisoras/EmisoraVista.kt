@@ -1,17 +1,8 @@
-package com.jcmateus.casanarestereo.screens.usuarios
+package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 
 import android.annotation.SuppressLint
 import android.net.Uri
 import android.view.MotionEvent
-import androidx.activity.result.launch
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -19,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +32,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -53,18 +44,14 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -88,7 +75,7 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -106,9 +93,22 @@ fun EmisoraVista(
     val perfilEmisora by emisoraViewModel.perfilEmisora.collectAsState()
     var isPlaying by remember { mutableStateOf(false) }
 
+    val isLoading by emisoraViewModel.isLoading.collectAsState()
+
+
     // Botón de reproducción
     val context = LocalContext.current
     val exoPlayer = remember { ExoPlayer.Builder(context).build() }
+
+    if (isLoading) {
+        CircularProgressIndicator() // Mostrar indicador de carga
+    } else {
+        perfilEmisora?.let { perfil ->
+            // Mostrar la información de la emisora
+            Text(text = perfil.nombre)
+            // ...
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -186,7 +186,7 @@ fun EmisoraVista(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Divider(
-                        color = MaterialTheme.colorScheme.surface,
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier
                             .height(1.dp)
                             .width(24.dp)

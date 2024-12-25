@@ -1,8 +1,7 @@
-package com.jcmateus.casanarestereo.screens.usuarios
+package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 
 import android.annotation.SuppressLint
 import android.net.Uri
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -60,10 +58,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
-import com.jcmateus.casanarestereo.screens.home.Destinos
 
 
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
@@ -163,6 +159,7 @@ fun FormularioPerfilEmisora(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -282,11 +279,12 @@ fun FormularioPerfilEmisora(
             OutlinedTextField(
                 value = frecuencia,
                 onValueChange = { frecuencia = it },
-                label = { Text("Frecuencia") },
+                label = { Text("Frecuencia", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+
                 ),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,

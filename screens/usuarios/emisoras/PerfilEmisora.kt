@@ -1,4 +1,4 @@
-package com.jcmateus.casanarestereo.screens.usuarios
+package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 
 data class PerfilEmisora(
     val nombre: String = "", // Cambiar el orden de los campos

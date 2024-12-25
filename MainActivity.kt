@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.DrawerValue
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +34,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,21 +47,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import androidx.compose.material.Scaffold
-import androidx.compose.material.rememberDrawerState
-import androidx.compose.material.rememberScaffoldState
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.screens.home.Drawer
-import com.jcmateus.casanarestereo.screens.home.HomeViewModel
-import com.jcmateus.casanarestereo.screens.home.NavegacionInferior
-import com.jcmateus.casanarestereo.screens.home.TopBar
 import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion

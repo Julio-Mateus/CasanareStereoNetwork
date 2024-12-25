@@ -9,7 +9,6 @@ package com.jcmateus.casanarestereo.screens.login
 //import androidx.compose.ui.graphics.ColorFilter
 //import com.google.android.gms.auth.api.signin.GoogleSignIn
 import android.Manifest
-import android.R.attr.data
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
@@ -90,14 +89,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
-import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
@@ -106,9 +103,9 @@ import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
-import com.jcmateus.casanarestereo.screens.usuarios.PerfilEmisora
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
 

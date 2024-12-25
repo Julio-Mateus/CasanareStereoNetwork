@@ -11,7 +11,7 @@ import androidx.navigation.compose.DialogNavigator
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
 
 
 class HomeApplication : Application() {

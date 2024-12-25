@@ -1,12 +1,10 @@
-package com.jcmateus.casanarestereo.screens.usuarios
+package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 
 
 import android.content.ContentValues.TAG
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.launch
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -17,16 +15,24 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.UploadTask
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-import kotlin.text.set
-import kotlin.toString
-
 class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
     private val _perfilEmisora = MutableStateFlow(PerfilEmisora()) // Cambiar a MutableStateFlow
     val perfilEmisora: StateFlow<PerfilEmisora> = _perfilEmisora.asStateFlow() // Exponer como StateFlow
+
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            cargarPerfilEmisora()
+        }
+    }
 
     fun actualizarPerfil(perfil: PerfilEmisora, navController: NavHostController) {
         _perfilEmisora.value = perfil
@@ -112,27 +118,32 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
 
     // Función para cargar los datos del perfil de la emisora desde Firestore
     fun cargarPerfilEmisora() {
-        val db = FirebaseFirestore.getInstance()
-        val user = FirebaseAuth.getInstance().currentUser
-        if (user != null) {
-            db.collection("emisoras").document(user.uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        val perfil = document.toObject(PerfilEmisora::class.java)
-                        if (perfil != null) {
-                            _perfilEmisora.value = perfil
+        viewModelScope.launch {
+            delay(2000) // Simula un delay de 2 segundos
+            val db = FirebaseFirestore.getInstance()
+            val user = FirebaseAuth.getInstance().currentUser
+            if (user != null) {
+                db.collection("emisoras").document(user.uid)
+                    .get()
+                    .addOnSuccessListener { document ->
+                        if (document != null && document.exists()) {
+                            val perfil = document.toObject(PerfilEmisora::class.java)
+                            if (perfil != null) {
+                                _perfilEmisora.value = perfil
+                            }
+                        } else {
+                            // El documento no existe, puedes crear un nuevo perfil de emisora
+                            // o manejar la situación de otra manera
                         }
-                    } else {
-                        // El documento no existe, puedes crear un nuevo perfil de emisora
-                        // o manejar la situación de otra manera
+                        _isLoading.value = false // Actualizar el estado de carga a false
                     }
-                }
-                .addOnFailureListener { e ->
-                    // Error al cargar los datos
-                    // Manejar el error aquí, por ejemplo, mostrar un mensaje de error al usuario
-                    Log.w(TAG, "Error al cargar el perfil de la emisora", e)
-                }
+                    .addOnFailureListener { e ->
+                        // Error al cargar los datos
+                        // Manejar el error aquí, por ejemplo, mostrar un mensaje de error al usuario
+                        Log.w(TAG, "Error al cargar el perfil de la emisora", e)
+                        _isLoading.value = false // Actualizar el estado de carga a false
+                    }
+            }
         }
     }
     init {

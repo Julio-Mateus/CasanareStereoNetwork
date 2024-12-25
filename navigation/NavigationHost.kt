@@ -23,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
@@ -67,10 +66,9 @@ import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel.EmisoraViewModelFactory
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
-import com.jcmateus.casanarestereo.screens.usuarios.FormularioPerfilEmisora
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.FormularioPerfilEmisora
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
