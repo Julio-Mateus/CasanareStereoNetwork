@@ -3,7 +3,6 @@ package com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias
 import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
@@ -32,16 +34,33 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import com.google.gson.Gson
+import com.jcmateus.casanarestereo.HomeApplication
+import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormularioNoticia(navController: NavHostController, onGuardar: (Contenido.Noticia) -> Unit) {
+fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostController) {
+    // Obtener la fábrica de ViewModel
+    val factory =
+        (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+
+    // Obtener el ViewModel utilizando la fábrica
+    val emisoraViewModel: EmisoraViewModel = viewModel(factory = factory)
+    val noticiaGuardada by emisoraViewModel.noticiaGuardada.collectAsState()
+
     var titulo by remember { mutableStateOf("") }
     var imagenUri by remember { mutableStateOf("") }
     var fuente by remember { mutableStateOf("") }
@@ -94,35 +113,42 @@ fun FormularioNoticia(navController: NavHostController, onGuardar: (Contenido.No
                             ubicacion,
                             etiqueta
                         )
-                        onGuardar(noticia)
+                        emisoraViewModel.guardarNoticia(noticia)
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
                     }
                 }
             )
         }
-    ) {
+    ) {innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (imagenUri.isNotBlank()) {
+                AsyncImage(
+                    model = imagenUri,
+                    contentDescription = "Imagen de la noticia",
+                    modifier = Modifier
+                        .size(200.dp, 150.dp) // Ajustar las dimensiones según sea necesario
+                        .clip(RoundedCornerShape(8.dp)) // Agregar bordes redondeados si lo deseas
+                )
+            }
+            // Campo para la imagen (se abre un selector de archivos)
+            Button(onClick = { launcher.launch("image/*") }) {
+                Text("Seleccionar imagen")
+            }
             OutlinedTextField(
                 value = titulo,
                 onValueChange = { titulo = it },
                 label = { Text("Título") },
                 modifier = Modifier.fillMaxWidth()
             )
-
-            // Campo para la imagen (se abre un selector de archivos)
-            Button(onClick = { launcher.launch("image/*") }) {
-                Text("Seleccionar imagen")
-            }
-            Text("Imagen seleccionada: $imagenUri")
-
             OutlinedTextField(
                 value = fuente,
                 onValueChange = { fuente = it },
@@ -184,9 +210,24 @@ fun FormularioNoticia(navController: NavHostController, onGuardar: (Contenido.No
                     ubicacion,
                     etiqueta
                 )
-                onGuardar(noticia)
+                emisoraViewModel.guardarNoticia(noticia)
+                navController.navigate(Destinos.VistaNoticia.ruta) // Navegar a la vista de visualización
             }) {
                 Text("Guardar")
+            }
+        }
+
+        // Utilizar un LaunchedEffect para la navegación
+        LaunchedEffect(key1 = noticiaGuardada) {
+            if (noticiaGuardada) {
+                // Obtener la noticia guardada
+                val noticia = emisoraViewModel.obtenerNoticiaGuardada()
+
+                val gson = Gson()
+                val noticiaJson = gson.toJson(noticia)
+
+                navController.navigate("${Destinos.VistaNoticia.ruta}/$noticiaJson")
+                emisoraViewModel.restablecerNoticiaGuardada() // Restablecer el estado
             }
         }
     }
@@ -195,5 +236,8 @@ fun FormularioNoticia(navController: NavHostController, onGuardar: (Contenido.No
 @Composable
 @Preview
 fun FormularioNoticiaPreview() {
-    FormularioNoticia(navController = rememberNavController(), onGuardar = {})
+    FormularioNoticia(
+        innerPadding = PaddingValues(),
+        navController = rememberNavController()
+    )
 }

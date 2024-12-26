@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,9 +74,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.jcmateus.casanarestereo.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -238,44 +239,64 @@ fun EmisoraVista(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(66.dp))
-
-            // Cards
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 128.dp),
-                modifier = Modifier.weight(1f, fill = false), // fill = false para evitar que ocupe todo el espacio
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            // Botones de navegación
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(
-                    listOf(
-                        "Subir noticia" to "ruta_formulario_noticia",
-                        "Subir podcast" to "ruta_formulario_podcast",
-                        "Subir programa" to "ruta_formulario_programa",
-                        "Subir banner" to "ruta_formulario_banner"
+                Button(
+                    onClick = { navController.navigate(Destinos.FormularioNoticia.ruta) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp), // Altura del botón
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary, // Color de fondo
+                        contentColor = MaterialTheme.colorScheme.onPrimary // Color del texto
                     )
-                ) { (text, route) ->
-                    var isHovered by remember { mutableStateOf(false) }
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pointerInteropFilter {
-                                isHovered = it.action == MotionEvent.ACTION_HOVER_ENTER
-                                true
-                            }
-                            .clickable { navController.navigate(route) },
-                        elevation = CardDefaults.cardElevation(defaultElevation = if (isHovered) 9.dp else 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Text(
-                            text = text,
-                            modifier = Modifier.padding(18.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center // Centrar el texto
-                        )
-                    }
+                ) {
+                    Text("Subir noticia", fontSize = 16.sp)
+                }
+
+                Button(
+                    onClick = { navController.navigate(Destinos.FormularioPodcast.ruta) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Subir podcast", fontSize = 16.sp)
+                }
+
+                Button(
+                    onClick = { navController.navigate(Destinos.FormularioPrograma.ruta) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Subir programa", fontSize = 16.sp)
+                }
+
+                Button(
+                    onClick = { navController.navigate(Destinos.FormularioBanner.ruta) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Subir banner", fontSize = 16.sp)
                 }
             }
         }

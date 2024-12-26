@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,14 +35,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormularioPodcast(navController: NavHostController, onGuardar: (Contenido.Podcast) -> Unit) {
+fun FormularioPodcast(innerPadding: PaddingValues,navController: NavHostController) {
+    val emisoraViewModel: EmisoraViewModel = viewModel()
+
+
     var tituloPodcast by remember { mutableStateOf("") }
     var descripcionPodcast by remember { mutableStateOf("") }
     var audioUriPodcast by remember { mutableStateOf("") }
@@ -104,7 +110,7 @@ fun FormularioPodcast(navController: NavHostController, onGuardar: (Contenido.Po
                             numeroEpisodioPodcast,
                             numeroTemporadaPodcast
                         )
-                        onGuardar(podcast)
+                        emisoraViewModel.guardarPodcasts(podcast)
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
                     }
@@ -208,7 +214,7 @@ fun FormularioPodcast(navController: NavHostController, onGuardar: (Contenido.Po
                     numeroEpisodioPodcast,
                     numeroTemporadaPodcast
                 )
-                onGuardar(podcast)
+                emisoraViewModel.guardarPodcasts(podcast)
             }) {
                 Text("Guardar")
             }
@@ -221,5 +227,5 @@ fun FormularioPodcast(navController: NavHostController, onGuardar: (Contenido.Po
 @Composable
 @Preview
 fun FormularioPodcastPreview() {
-    FormularioPodcast(navController = rememberNavController(), onGuardar = {})
+    FormularioPodcast(navController = rememberNavController(), innerPadding = PaddingValues())
 }

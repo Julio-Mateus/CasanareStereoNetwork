@@ -99,12 +99,12 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.jcmateus.casanarestereo.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch

@@ -34,6 +34,23 @@ sealed class Destinos(
     data object EmisoraVista : Destinos( icon = null, title = "Emisora", ruta = "EmisoraVista")
     data object FormularioPerfilEmisora : Destinos( icon = null, title = "FormularioEmisora", ruta = "FormularioPerfilEmisora")
 
+    //Noticias
+    data object VistaNoticia : Destinos( icon = null, title = "Noticias", ruta = "VistaNoticias")
+    data object FormularioNoticia : Destinos( icon = null, title = "FormularioNoticia", ruta = "FormularioNoticia")
+
+    //Podcast
+    data object VistaPodcast : Destinos( icon = null, title = "Podcast", ruta = "PodcastVista")
+    data object FormularioPodcast : Destinos( icon = null, title = "FormularioPodcast", ruta = "FormularioPodcast")
+
+    //Programacion
+    data object VistaPrograma : Destinos( icon = null, title = "Programacion", ruta = "VistaPrograma")
+    data object FormularioPrograma : Destinos( icon = null, title = "FormularioPrograma", ruta = "FormularioPrograma")
+
+    //Banner
+    data object VistaBanner : Destinos( icon = null, title = "Banner", ruta = "BannerVista")
+    data object FormularioBanner : Destinos( icon = null, title = "FormularioBanner", ruta = "FormularioBanner")
+
+
 
 
     object SplashScreen : Destinos(null, "SplashScreen", "SplashScreen")

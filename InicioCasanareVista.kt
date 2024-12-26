@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.ComposeNavigator
@@ -11,7 +13,7 @@ import androidx.navigation.compose.DialogNavigator
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 
 
 class HomeApplication : Application() {
@@ -22,6 +24,7 @@ class HomeApplication : Application() {
             setViewModelStore(ViewModelStore())
         }
     }
+
     val firebaseAuth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     var showScaffold by mutableStateOf(false)
 
@@ -33,5 +36,15 @@ class HomeApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+    }
+}
+
+class EmisoraViewModelFactory(private val firebaseAuth: FirebaseAuth) :
+    ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(EmisoraViewModel::class.java)) {
+            return EmisoraViewModel(firebaseAuth) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

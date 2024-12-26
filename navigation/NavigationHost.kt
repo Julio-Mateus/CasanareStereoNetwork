@@ -21,8 +21,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
@@ -69,6 +71,11 @@ import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.FormularioPerfilEmisora
+import com.google.gson.Gson
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.FormularioNoticia
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.VistaNoticia
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.FormularioPodcast
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -295,6 +302,31 @@ fun NavigationHost(
                 )
             }
         }
+
+        // Noticias
+        composable(
+            route = "${Destinos.VistaNoticia.ruta}/{noticiaJson}", // Cambiar el nombre del argumento a noticiaJson
+            arguments = listOf(navArgument("noticiaJson") {
+                type = NavType.StringType
+            }) // Definir el tipo de argumento como StringType
+        ) { backStackEntry ->
+            val noticiaJson =
+                backStackEntry.arguments?.getString("noticiaJson") // Obtener la cadena JSON del argumento
+            val noticia = noticiaJson?.let {
+                val gson = Gson() // Utilizar Gson para convertir la cadena JSON a un objeto Noticia
+                gson.fromJson(it, Contenido.Noticia::class.java)
+            }
+            VistaNoticia(noticia, innerPadding, navController) // Pasar la noticia a la vista
+        }
+
+
+
+        // Formularios
+        composable(Destinos.FormularioNoticia.ruta) { ScaffoldContent { innerPadding -> FormularioNoticia(innerPadding, navController) } }
+        composable(Destinos.FormularioPodcast.ruta) { ScaffoldContent { innerPadding -> FormularioPodcast(innerPadding, navController) } }
+        //composable(Destinos.FormularioPrograma.ruta) { ScaffoldContent { innerPadding -> FormularioPrograma(innerPadding, navController) } }
+        //composable(Destinos.FormularioBanner.ruta) { ScaffoldContent { innerPadding -> FormularioBanner(innerPadding, navController) } }
+
 
     }
 
