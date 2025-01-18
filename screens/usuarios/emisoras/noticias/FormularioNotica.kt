@@ -48,6 +48,9 @@ import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
+import kotlin.collections.set
+import kotlin.text.set
+import kotlin.toString
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +65,7 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
     val noticiaGuardada by emisoraViewModel.noticiaGuardada.collectAsState()
 
     var titulo by remember { mutableStateOf("") }
-    var imagenUri by remember { mutableStateOf("") }
+    var imagenUri by remember { mutableStateOf<Uri?>(null) }
     var fuente by remember { mutableStateOf("") }
     var fechaPublicacion by remember { mutableStateOf("") }
     var autor by remember { mutableStateOf("") }
@@ -76,7 +79,7 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        imagenUri = uri?.toString() ?: ""
+        imagenUri = uri
     }
 
     Scaffold(
@@ -104,23 +107,28 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                         // Guardar los cambios
                         val noticia = Contenido.Noticia(
                             titulo,
-                            imagenUri,
+                            imagenUri?.toString() ?: "",
                             fuente,
                             fechaPublicacion,
                             autor,
                             enlace,
                             contenido,
                             ubicacion,
-                            etiqueta
+                            etiqueta,
+                            id = ""
                         )
                         emisoraViewModel.guardarNoticia(noticia)
+
+                        // Navegar a VistaNoticia
+                        navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri?.toString())
+                        navController.navigate("${Destinos.VistaNoticia.ruta}/${Gson().toJson(noticia)}")
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
                     }
                 }
             )
         }
-    ) {innerPadding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -130,7 +138,7 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (imagenUri.isNotBlank()) {
+            if (imagenUri != null) {
                 AsyncImage(
                     model = imagenUri,
                     contentDescription = "Imagen de la noticia",
@@ -201,17 +209,21 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
             Button(onClick = {
                 val noticia = Contenido.Noticia(
                     titulo,
-                    imagenUri,
+                    imagenUri?.toString() ?: "",
                     fuente,
                     fechaPublicacion,
                     autor,
                     enlace,
                     contenido,
                     ubicacion,
-                    etiqueta
+                    etiqueta,
+                    id = ""
                 )
                 emisoraViewModel.guardarNoticia(noticia)
-                navController.navigate(Destinos.VistaNoticia.ruta) // Navegar a la vista de visualización
+
+                // Navegar a VistaNoticia
+                navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri?.toString())
+                navController.navigate("${Destinos.VistaNoticia.ruta}/${Gson().toJson(noticia)}")
             }) {
                 Text("Guardar")
             }
@@ -219,17 +231,20 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
 
         // Utilizar un LaunchedEffect para la navegación
         LaunchedEffect(key1 = noticiaGuardada) {
-            if (noticiaGuardada) {
-                // Obtener la noticia guardada
-                val noticia = emisoraViewModel.obtenerNoticiaGuardada()
+    if (noticiaGuardada) {
+        // Obtener la noticia guardada
+        val noticia = emisoraViewModel.obtenerNoticiaGuardada()
 
-                val gson = Gson()
-                val noticiaJson = gson.toJson(noticia)
+        val gson = Gson()
+        val noticiaJson = gson.toJson(noticia)
 
-                navController.navigate("${Destinos.VistaNoticia.ruta}/$noticiaJson")
-                emisoraViewModel.restablecerNoticiaGuardada() // Restablecer el estado
-            }
-        }
+        // Guardar la URI de la imagen en el savedStateHandle
+        navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri)
+
+        navController.navigate("${Destinos.VistaNoticia.ruta}/$noticiaJson")
+        emisoraViewModel.restablecerNoticiaGuardada() // Restablecer el estado
+    }
+}
     }
 }
 

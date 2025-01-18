@@ -4,6 +4,8 @@ package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 import android.content.ContentValues.TAG
 import android.net.Uri
 import android.util.Log
+import androidx.compose.animation.core.copy
+import androidx.compose.foundation.layout.add
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
@@ -11,18 +13,24 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.google.android.gms.tasks.Task
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.UploadTask
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido.Noticia
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido.Podcast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
+import kotlin.text.set
 
-class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
+class EmisoraViewModel(private val repository: EmisoraRepository,private val firebaseAuth: FirebaseAuth) : ViewModel() {
     private val _perfilEmisora = MutableStateFlow(PerfilEmisora()) // Cambiar a MutableStateFlow
     val perfilEmisora: StateFlow<PerfilEmisora> =
         _perfilEmisora.asStateFlow() // Exponer como StateFlow
@@ -30,6 +38,23 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private var ultimaNoticiaGuardada: Contenido.Noticia? = null
+    private val _noticiaGuardada = MutableStateFlow(false)
+    var noticiaGuardada: StateFlow<Boolean> = _noticiaGuardada.asStateFlow()
+
+    private val _noticiaActual = MutableStateFlow<Contenido.Noticia?>(null)
+    val noticiaActual: StateFlow<Contenido.Noticia?> = _noticiaActual.asStateFlow()
+
+    private val _errorGuardandoNoticia = MutableStateFlow(false)
+    val errorGuardandoNoticia: StateFlow<Boolean> = _errorGuardandoNoticia.asStateFlow()
+
+
+
+    private val _podcastGuardado = MutableStateFlow(false)
+    var podcastGuardado: StateFlow<Boolean> = _podcastGuardado.asStateFlow()
+    private val _errorGuardandoPodcast = MutableStateFlow(false)
+    val errorGuardandoPodcast: StateFlow<Boolean> = _errorGuardandoPodcast.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -144,66 +169,72 @@ class EmisoraViewModel(private val firebaseAuth: FirebaseAuth) : ViewModel() {
         }
     }
 
-    private var ultimaNoticiaGuardada: Contenido.Noticia? = null
-    private val _noticiaGuardada = MutableStateFlow(false)
-    var noticiaGuardada: StateFlow<Boolean> = _noticiaGuardada.asStateFlow()
+    fun subirPodcast(podcast: Contenido.Podcast) {
+        viewModelScope.launch {
+            repository.subirPodcast(podcast)
+        }
+    }
+    fun subirNoticia(noticia: Contenido.Noticia) {
+        viewModelScope.launch {
+            repository.subirNoticia(noticia)
+        }
+    }
+    fun subirPrograma(programa: Contenido.Programa) {
+        viewModelScope.launch {
+            repository.subirPrograma(programa)
+        }
+    }
+    fun subirBanner(banner: Contenido.Banner) {
+        viewModelScope.launch {
+            repository.subirBanner(banner)
+        }
+    }
 
-    private val _errorGuardandoNoticia = MutableStateFlow(false)
-    val errorGuardandoNoticia: StateFlow<Boolean> = _errorGuardandoNoticia.asStateFlow()
 
     fun guardarNoticia(noticia: Contenido.Noticia) {
         viewModelScope.launch {
-            val userId = firebaseAuth.currentUser?.uid ?: return@launch
-            val db = FirebaseFirestore.getInstance()
-
-            db.collection("emisoras").document(userId).collection("noticias")
-                .add(noticia)
-                .addOnSuccessListener { documentReference ->
-                    Log.d(TAG, "Noticia guardada con ID: ${documentReference.id}")
-                    _noticiaGuardada.value = true
-                    ultimaNoticiaGuardada = noticia
-                }
-                .addOnFailureListener { e ->
-                    Log.w(TAG, "Error al guardar la noticia", e)
-                    _errorGuardandoNoticia.value = true
-
-                }
-
+            try {
+                val userId = firebaseAuth.currentUser?.uid ?: ""
+                val db = FirebaseFirestore.getInstance()
+                val docRef = db.collection("emisoras").document(userId).collection("noticias").document()
+                val noticiaConId = noticia.copy(id = docRef.id)
+                db.collection("emisoras").document(userId).collection("noticias").document(noticiaConId.id).set(noticiaConId).await()
+                _noticiaGuardada.value = true
+                _noticiaActual.value = noticiaConId
+                ultimaNoticiaGuardada = noticiaConId
+            } catch (e: Exception) {
+                _errorGuardandoNoticia.value = true
+            }
         }
     }
+
     fun obtenerNoticiaGuardada(): Contenido.Noticia? {
         return ultimaNoticiaGuardada
     }
+
     fun restablecerNoticiaGuardada() {
         _noticiaGuardada.value = false
     }
 
-    private val _podcastGuardado = MutableStateFlow(false)
-    var podcastGuardado: StateFlow<Boolean> = _podcastGuardado.asStateFlow()
-    private val _errorGuardandoPodcast = MutableStateFlow(false)
-    val errorGuardandoPodcast: StateFlow<Boolean> = _errorGuardandoPodcast.asStateFlow()
+
     fun guardarPodcasts(podcast: Contenido.Podcast) {
         viewModelScope.launch {
-            val userId = firebaseAuth.currentUser?.uid ?: return@launch
-            val db = FirebaseFirestore.getInstance()
-
-            db.collection("emisoras").document(userId).collection("podcasts")
-                .add(podcast)
-                .addOnSuccessListener { documentReference ->
-                    Log.d(TAG, "Podcast guardado con ID: ${documentReference.id}")
-                    _podcastGuardado.value = true
-                }
-                .addOnFailureListener { e ->
-                    Log.w(TAG, "Error al guardar el podcast", e)
-                    _errorGuardandoPodcast.value = true
-                }
+            try {
+                val userId = firebaseAuth.currentUser?.uid ?: ""
+                val db = FirebaseFirestore.getInstance()
+                val docRef = db.collection("emisoras").document(userId).collection("podcasts").document()
+                val podcastConId = podcast.copy(id = docRef.id)
+                db.collection("emisoras").document(userId).collection("podcasts").document(podcastConId.id).set(podcastConId).await()
+                _podcastGuardado.value = true
+            } catch (e: Exception) {
+                _errorGuardandoPodcast.value = true
+            }
         }
     }
+
     fun restablecerPodcastGuardado() {
         _podcastGuardado.value = false
     }
-
-
     init {
         cargarPerfilEmisora() // Llamar a la función para cargar los datos
     }

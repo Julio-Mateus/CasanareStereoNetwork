@@ -11,9 +11,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.compose.DialogNavigator
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
 
 
 class HomeApplication : Application() {
@@ -30,8 +32,10 @@ class HomeApplication : Application() {
 
     val dataStoreManager: DataStoreManager by lazy { DataStoreManager(this) } // Instancia única de DataStoreManager
     val authService: AuthService by lazy { AuthService(firebaseAuth) }
+    val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    val emisoraRepository: EmisoraRepository by lazy { EmisoraRepository(firebaseAuth, db) }
     val emisoraViewModelFactory: EmisoraViewModelFactory by lazy {
-        EmisoraViewModelFactory(firebaseAuth)
+        EmisoraViewModelFactory(emisoraRepository, firebaseAuth)
     }
 
     override fun onCreate() {
@@ -39,12 +43,3 @@ class HomeApplication : Application() {
     }
 }
 
-class EmisoraViewModelFactory(private val firebaseAuth: FirebaseAuth) :
-    ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(EmisoraViewModel::class.java)) {
-            return EmisoraViewModel(firebaseAuth) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}

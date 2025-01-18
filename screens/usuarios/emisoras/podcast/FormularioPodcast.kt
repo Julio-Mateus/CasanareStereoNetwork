@@ -41,7 +41,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormularioPodcast(innerPadding: PaddingValues,navController: NavHostController) {
@@ -73,6 +73,9 @@ fun FormularioPodcast(innerPadding: PaddingValues,navController: NavHostControll
     ) { uri: Uri? ->
         imagenUriPodcast = uri?.toString() ?: ""
     }
+
+    val podcastGuardado = emisoraViewModel.podcastGuardado.value
+    val errorGuardandoPodcast = emisoraViewModel.errorGuardandoPodcast.value
 
     Scaffold(
         topBar = {
@@ -108,7 +111,8 @@ fun FormularioPodcast(innerPadding: PaddingValues,navController: NavHostControll
                             etiquetaPodcast,
                             duracionPodcast,
                             numeroEpisodioPodcast,
-                            numeroTemporadaPodcast
+                            numeroTemporadaPodcast,
+                            id = ""
                         )
                         emisoraViewModel.guardarPodcasts(podcast)
                     }) {
@@ -212,11 +216,19 @@ fun FormularioPodcast(innerPadding: PaddingValues,navController: NavHostControll
                     etiquetaPodcast,
                     duracionPodcast,
                     numeroEpisodioPodcast,
-                    numeroTemporadaPodcast
+                    numeroTemporadaPodcast,
+                    id = ""
                 )
                 emisoraViewModel.guardarPodcasts(podcast)
             }) {
                 Text("Guardar")
+            }
+
+            // Mostrar un mensaje de éxito o error
+            if (podcastGuardado) {
+                Toast.makeText(context, "Podcast guardado correctamente", Toast.LENGTH_SHORT).show()
+            } else if (errorGuardandoPodcast) {
+                Toast.makeText(context, "Error al guardar el podcast", Toast.LENGTH_SHORT).show()
             }
         }
     }

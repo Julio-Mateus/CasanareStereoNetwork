@@ -99,12 +99,14 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
-import com.jcmateus.casanarestereo.EmisoraViewModelFactory
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
@@ -839,7 +841,9 @@ fun PreviewContent() {
     val context = LocalContext.current
     val navController = remember { NavHostController(context) }
     val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
-    val viewModelFactory = EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
+    val db = FirebaseFirestore.getInstance()
+    val repository = EmisoraRepository(firebaseAuth,db)
+    val viewModelFactory = EmisoraViewModelFactory(repository,firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
     val emisoraViewModel = viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
     CasanareLoginScreen(navController, emisoraViewModel = emisoraViewModel) // Pasa la instancia de emisoraViewModel a CasanareLoginScreen
 }

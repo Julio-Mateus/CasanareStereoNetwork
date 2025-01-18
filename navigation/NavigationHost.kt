@@ -76,6 +76,7 @@ import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.FormularioNoticia
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.VistaNoticia
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.FormularioPodcast
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.VistaPodcast
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -287,7 +288,7 @@ fun NavigationHost(
         }
 
         //Emisora
-        composable(Destinos.EmisoraVista.ruta) {
+        composable(Destinos.EmisoraVista.ruta) { backStackEntry ->
             val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
                 factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
             )
@@ -316,7 +317,22 @@ fun NavigationHost(
                 val gson = Gson() // Utilizar Gson para convertir la cadena JSON a un objeto Noticia
                 gson.fromJson(it, Contenido.Noticia::class.java)
             }
-            VistaNoticia(noticia, innerPadding, navController) // Pasar la noticia a la vista
+            VistaNoticia(noticiaJson, innerPadding, navController) // Pasar la noticia a la vista
+        }
+
+        // Podcast
+        composable(
+            route = "${Destinos.VistaPodcast.ruta}/{podcastJson}",
+            arguments = listOf(navArgument("podcastJson") {
+                type = NavType.StringType
+            })
+        ) { backStackEntry ->
+            val podcastJson = backStackEntry.arguments?.getString("podcastJson")
+            val podcast = podcastJson?.let {
+                val gson = Gson()
+                gson.fromJson(it, Contenido.Podcast::class.java)
+            }
+            VistaPodcast(podcast, innerPadding)
         }
 
 

@@ -74,7 +74,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
-import com.jcmateus.casanarestereo.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import kotlinx.coroutines.delay
@@ -85,7 +84,9 @@ import kotlin.random.Random
 @Composable
 fun EmisoraVista(
     navController: NavHostController,
-    emisoraViewModel: EmisoraViewModel
+    emisoraViewModel: EmisoraViewModel = viewModel(
+        factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+    )
 ) {
     val emisoraViewModel: EmisoraViewModel = viewModel(
         factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
@@ -348,11 +349,10 @@ fun PlaybackWaves(isPlaying: Boolean, waveSize: Dp, modifier: Modifier = Modifie
 @Composable
 @Preview
 fun EmisoraVistaPreview() {
-    val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
-    val viewModelFactory =
-        EmisoraViewModelFactory(firebaseAuth) // Crea una instancia de EmisoraViewModelFactory
-    val emisoraViewModel =
-        viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
+    val context = LocalContext.current
+    val application = context.applicationContext as HomeApplication
+    val emisoraViewModelFactory = application.emisoraViewModelFactory
+    val emisoraViewModel = viewModel<EmisoraViewModel>(factory = emisoraViewModelFactory)
     EmisoraVista(
         navController = NavHostController(LocalContext.current), emisoraViewModel = emisoraViewModel
     )

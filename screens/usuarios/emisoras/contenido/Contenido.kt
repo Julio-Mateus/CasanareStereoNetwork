@@ -1,5 +1,7 @@
 package com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido
 
+import java.io.Serializable
+
 sealed class Contenido {
     data class Noticia(
         val tituloNoticia: String,
@@ -10,8 +12,9 @@ sealed class Contenido {
         val enlaceNoticia: String,
         val contenidoNoticia: String,
         val ubicacionNoticia: String,
-        val etiquetaNoticia: String
-    ) : Contenido()
+        val etiquetaNoticia: String,
+        val id : String
+    ) : Contenido(), Serializable
 
     data class Podcast(
         val tituloPodcast: String,
@@ -24,8 +27,9 @@ sealed class Contenido {
         val etiquetaPodcast: String,
         val duracionPodcast: String,
         val numeroEpisodioPodcast: String,
-        val numeroTemporadaPodcast: String
-    ) : Contenido()
+        val numeroTemporadaPodcast: String,
+        val id : String
+    ) : Contenido(), Serializable
 
     data class Programa(
         val nombrePrograma: String,
@@ -36,8 +40,9 @@ sealed class Contenido {
         val fechaPrograma: String,
         val autorPrograma: String,
         val etiquetaPrograma: String,
-        val duracionPrograma: String
-    ) : Contenido()
+        val duracionPrograma: String,
+        val id : String
+    ) : Contenido(), Serializable
 
     data class Banner(
         val imagenUriPublicidad: String,
@@ -48,6 +53,7 @@ sealed class Contenido {
         val descripcionPublicidad: String,
         val tituloPublicidad: String,
         val duracionPublicidad: String,
-        val tipoPublicidad: String
-    ) : Contenido()
+        val tipoPublicidad: String,
+        val id : String
+    ) : Contenido(), Serializable
 }

@@ -35,7 +35,7 @@ sealed class Destinos(
     data object FormularioPerfilEmisora : Destinos( icon = null, title = "FormularioEmisora", ruta = "FormularioPerfilEmisora")
 
     //Noticias
-    data object VistaNoticia : Destinos( icon = null, title = "Noticias", ruta = "VistaNoticias")
+    data object VistaNoticia : Destinos( icon = null, title = "Noticias", ruta = "VistaNoticia")
     data object FormularioNoticia : Destinos( icon = null, title = "FormularioNoticia", ruta = "FormularioNoticia")
 
     //Podcast
