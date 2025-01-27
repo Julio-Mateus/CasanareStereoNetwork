@@ -38,6 +38,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,9 +52,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.BottomAppBar
-import androidx.compose.material.BottomNavigation
-import androidx.compose.material.BottomNavigationItem
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -95,10 +93,14 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.AuthService
+import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
+import com.jcmateus.casanarestereo.screens.login.DataStoreManager
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
@@ -107,7 +109,6 @@ import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
-import com.jcmateus.casanarestereo.screens.menus.Emisoras
 import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
@@ -119,43 +120,25 @@ import com.jcmateus.casanarestereo.screens.menus.Programas
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
+import com.jcmateus.casanarestereo.screens.menus.emisoras.EmisorasScreen
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilScreen
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.intellij.lang.annotations.JdkConstants
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
 
 
-class HomeActivity : ComponentActivity() {
-    lateinit var loginViewModel: LoginScreenViewModel
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            CasanareStereoTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val navController = rememberNavController()
-                    val loginViewModel = createLoginViewModel(application as HomeApplication)
-                    val showScaffold = (application as HomeApplication).showScaffold
-                    HomeCasanareVista(navController, showScaffold = showScaffold)
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
     val dataStoreManager = application.dataStoreManager
-    val authService = AuthService(application.firebaseAuth) // Crear instancia de AuthService
+    val authService = AuthService(application.firebaseAuth, dataStoreManager) // Crear instancia de AuthService
     return viewModel(
         factory = LoginScreenViewModelFactory(
             dataStoreManager,
@@ -168,7 +151,7 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @Composable
-fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
+fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, emisoraViewModel: EmisoraViewModel, usuarioPerfilViewModel: UsuarioPerfilViewModel,authService: AuthService) {
     Log.d("NavController", "Home: $navController")
     var expanded by remember { mutableStateOf(false) }
     val dataStoreManager =
@@ -214,16 +197,20 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
     val rolUsuario = dataStoreManager.getRolUsuario().collectAsState(initial = Rol.USUARIO).value
     when (rolUsuario) {
         Rol.USUARIO -> {
-            // Composable para la vista del usuario
-            //UsuarioVista(navController)
+            UsuarioPerfilScreen(
+                navController = navController,
+                viewModel = usuarioPerfilViewModel // Ahora tienes acceso a usuarioPerfilViewModel
+            )
         }
 
         Rol.EMISORA -> {
-            // Composable para la vista de la emisora
             EmisoraVista(
                 navController,
-                viewModel = TODO(),
+                emisoraViewModel
             )
+        }
+        Rol.NO_DEFINIDO -> {
+            CasanareLoginScreen(navController = navController, emisoraViewModel = emisoraViewModel)
         }
     }
 
@@ -258,7 +245,11 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
                         navController,
                         bottomNavDestinations,
                         expanded,
-                        { expanded = it })
+                        { expanded = it },
+                        innerPadding = PaddingValues(0.dp),
+                        dataStoreManager = dataStoreManager,
+                        authService = authService
+                    )
                 }
             },
             topBar = {
@@ -279,8 +270,8 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
         ) { innerPadding ->
             when (currentRoute) {
                 Destinos.Pantalla1.ruta -> Inicio(innerPadding)
-                Destinos.Pantalla2.ruta -> Emisoras(innerPadding)
-                Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding)
+                Destinos.Pantalla2.ruta -> EmisorasScreen(innerPadding, navController)
+                Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding, navController)
                 Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
                 Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
                 Destinos.Pantalla6.ruta -> Programacion(innerPadding)
@@ -290,7 +281,7 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean) {
                 Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
                 Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
                 Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
-                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController, innerPadding)
+                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
                 //Destinos.Pantalla14.ruta -> Preferencias(innerPadding, navController)
                 Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
                 Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
@@ -337,8 +328,14 @@ fun NavegacionInferior(
     navController: NavHostController,
     items: List<Destinos>,
     expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit
+    onExpandedChange: (Boolean) -> Unit,
+    innerPadding: PaddingValues,
+    dataStoreManager: DataStoreManager,
+    authService: AuthService // Agregar authService como parámetro
 ) {
+    // Obtener el rol del usuario usando collectAsState
+    val rol by dataStoreManager.getRolUsuario().collectAsState(initial = Rol.NO_DEFINIDO) // Correcto: Usar getRolUsuario() y eliminar initial
+    var cerrarSesion by remember { mutableStateOf(false) }
     NavigationBar(
         modifier = Modifier.fillMaxWidth(),
         containerColor = Color.LightGray
@@ -347,12 +344,8 @@ fun NavegacionInferior(
         items.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.ruta,
-                //selectedContentColor = Color.Gray,
                 onClick = {
                     navController.navigate(item.ruta) {
-                        /*popUpTo(navController.graph.startDestinationId) {
-                            saveState =true
-                        }*/
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -366,9 +359,9 @@ fun NavegacionInferior(
                             modifier = Modifier
                                 .size(25.dp)
                                 .shadow(
-                                    elevation = 10.dp, // Ajusta la elevación para controlar la intensidad de la sombra
-                                    shape = CircleShape, // Puedes cambiar la forma de la sombra si lo deseas
-                                    clip = true // Recorta la sombra para que no se extienda fuera del icono
+                                    elevation = 10.dp,
+                                    shape = CircleShape,
+                                    clip = true
                                 )
                         )
                     }
@@ -393,9 +386,19 @@ fun NavegacionInferior(
                 .offset(y = (-16).dp)
         ) {
             DropdownMenuItem(
-                text = { Text("Perfil", color = MaterialTheme.colorScheme.onSurface) },
+                text = {
+                    androidx.compose.material3.Text(
+                        "Perfil",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
                 onClick = {
-                    navController.navigate(Destinos.EmisoraVista.ruta)
+                    val rutaPerfil = when (rol) {
+                        Rol.EMISORA -> Destinos.EmisoraVista.ruta
+                        Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
+                        else -> Destinos.Pantalla1.ruta // O una ruta por defecto
+                    }
+                    navController.navigate(rutaPerfil)
                     onExpandedChange(false) // Cerrar el menú después de la navegación
                 }
             )
@@ -409,13 +412,30 @@ fun NavegacionInferior(
             DropdownMenuItem(
                 text = { Text("Cerrar Sesion", color = MaterialTheme.colorScheme.onSurface) },
                 onClick = {
-                    navController.navigate(Destinos.Pantalla13.ruta)
+                    cerrarSesion = true
                     onExpandedChange(false) // Cerrar el menú después de la navegación
+                    //authService.cerrarSesion() // Llamar a cerrarSesion() de AuthService
+                    navController.navigate(Destinos.CasanareLoginScreen.ruta) {
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                    }
                 }
             )
             // ... (otras opciones del menú) ...
         }
 
+    }
+    if (cerrarSesion) {
+        LaunchedEffect(Unit) {
+            authService.cerrarSesion() // Llamar a cerrarSesion() de AuthService
+            navController.navigate(Destinos.CasanareLoginScreen.ruta) {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+            }
+            cerrarSesion = false
+        }
     }
 }
 

@@ -4,9 +4,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 
 @Composable
-fun Noticias_Regionales(innerPadding: PaddingValues) {
+fun Noticias_Regionales(innerPadding: PaddingValues, navController: NavHostController) {
     Column {
         Text("Noticias_Regionales")
     }

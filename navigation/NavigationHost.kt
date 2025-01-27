@@ -11,17 +11,25 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.PantallaPresentacion
 import com.jcmateus.casanarestereo.SplashScreen
 import com.jcmateus.casanarestereo.screens.formulario.Docentes
@@ -47,7 +55,6 @@ import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
 import com.jcmateus.casanarestereo.screens.menus.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
-import com.jcmateus.casanarestereo.screens.menus.Emisoras
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Internacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Nacionales
 import com.jcmateus.casanarestereo.screens.menus.Noticias_Regionales
@@ -64,8 +71,26 @@ import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
 import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraVista
-import com.jcmateus.casanarestereo.screens.usuarios.FormularioPerfilEmisora
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.FormularioPerfilEmisora
+import com.google.gson.Gson
+import com.jcmateus.casanarestereo.screens.login.DataStoreManager
+import com.jcmateus.casanarestereo.screens.menus.emisoras.EmisorasScreen
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.FormularioNoticia
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.VistaNoticia
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.FormularioPodcast
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.PodcastRepository
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.PodcastViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.PodcastViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.VistaPodcast
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.programacion.FormularioPrograma
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilScreen
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioRepository
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioViewModel
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -74,7 +99,12 @@ fun NavigationHost(
     innerPadding: PaddingValues,
     loginViewModel: LoginScreenViewModel,
     formularioViewModel: FormularioViewModel,
-    authService: AuthService
+    authService: AuthService,
+    emisoraViewModel: EmisoraViewModel,
+    podcastViewModel: PodcastViewModel,
+    usuarioViewModel: UsuarioViewModel,
+    dataStoreManager: DataStoreManager,
+    usuarioPerfilViewModel: UsuarioPerfilViewModel
 ) {
     Log.d("NavController", "NavigationHost: $navController")
     val authState = loginViewModel.authState.collectAsStateWithLifecycle()
@@ -99,6 +129,7 @@ fun NavigationHost(
         PantallaFormulario.Estudiantes3.ruta,
         PantallaFormulario.Docentes.ruta
     )
+
     // Función para determinar si se debe mostrar Scaffold
     fun shouldShowScaffold(route: String): Boolean {
         return !excludedRoutes.contains(route)
@@ -139,7 +170,15 @@ fun NavigationHost(
             scaffoldState = scaffoldState,
             bottomBar = {
                 if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(navController, bottomNavDestinations, expanded, { expanded = it })
+                    NavegacionInferior(
+                        navController,
+                        bottomNavDestinations,
+                        expanded,
+                        { expanded = it },
+                        innerPadding = innerPadding,
+                        dataStoreManager,
+                        authService
+                    )
                 }
             },
             topBar = {
@@ -168,15 +207,17 @@ fun NavigationHost(
         modifier = Modifier.padding(paddingValues = innerPadding)
     ) {
         // Inicio
-        composable(Destinos.SplashScreen.ruta){
-            SplashScreen(navController = navController, authService = authService)
+        composable(Destinos.SplashScreen.ruta) {
+            SplashScreen(navController = navController, authService = authService, loginViewModel = loginViewModel, dataStoreManager = dataStoreManager)
         }
-        composable(Destinos.PantallaPresentacion.ruta){
+        composable(Destinos.PantallaPresentacion.ruta) {
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
         }
-        composable(Destinos.CasanareLoginScreen.ruta){
-            CasanareLoginScreen(navController = navController, emisoraViewModel = viewModel() )
-
+        composable(Destinos.CasanareLoginScreen.ruta) {
+            val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
+                factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+            )
+            CasanareLoginScreen(navController = navController, emisoraViewModel = emisoraViewModel)
         }
         // Rutas del formulario
         composable(PantallaFormulario.SeleccionRol.ruta) {
@@ -204,7 +245,7 @@ fun NavigationHost(
         composable(Destinos.HomeCasanareVista.ruta) {
             // Llama a HomeCasanareVista con shouldShowScaffold
             val shouldShowScaffold = !excludedRoutes.contains(Destinos.HomeCasanareVista.ruta)
-            HomeCasanareVista(navController, shouldShowScaffold)
+            HomeCasanareVista(navController, shouldShowScaffold, emisoraViewModel, usuarioPerfilViewModel, authService)
         }
 
 
@@ -212,10 +253,10 @@ fun NavigationHost(
             ScaffoldContent { innerPadding -> Inicio(innerPadding) }
         }
         composable(Destinos.Pantalla2.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> Emisoras(innerPadding) }
+            ScaffoldContent { innerPadding -> EmisorasScreen(innerPadding, navController) }
         }
         composable(Destinos.Pantalla3.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> Noticias_Regionales(innerPadding) }
+            ScaffoldContent { innerPadding -> Noticias_Regionales(innerPadding, navController) }
         }
         composable(Destinos.Pantalla4.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> Noticias_Nacionales(innerPadding) }
@@ -245,7 +286,7 @@ fun NavigationHost(
             ScaffoldContent { innerPadding -> Configuraciones(innerPadding) }
         }
         composable(Destinos.Pantalla13.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> CerrarSesionButton(navController, innerPadding) }
+            ScaffoldContent { innerPadding -> CerrarSesionButton(navController,authService, innerPadding) }
         }
         /*composable(Destinos.Pantalla14.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding -> Preferencias(
@@ -269,11 +310,105 @@ fun NavigationHost(
 
         //Emisora
         composable(Destinos.EmisoraVista.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> EmisoraVista(navController, viewModel()) }
+            val emisoraViewModel: EmisoraViewModel = viewModel( // Obtener emisoraViewModel aquí
+                factory = (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+            )
+            ScaffoldContent { innerPadding ->
+                EmisoraVista(navController = navController, emisoraViewModel)
+            }
         }
         composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
-            ScaffoldContent { innerPadding -> FormularioPerfilEmisora(navController, viewModel()) }
+            ScaffoldContent { innerPadding ->
+                FormularioPerfilEmisora(
+                    navController
+                )
+            }
         }
+
+        // Noticias
+        composable(
+            route = "${Destinos.VistaNoticia.ruta}/{noticiaJson}",
+            arguments = listOf(navArgument("noticiaJson") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val noticiaJson = backStackEntry.arguments?.getString("noticiaJson")
+            val noticia = noticiaJson?.let { Gson().fromJson(it, Contenido.Noticia::class.java) }
+            VistaNoticia(noticia.toString(), innerPadding, navController) // Pasar el objeto Noticia a la vista
+        }
+
+        // Podcast
+        composable(
+            route = "${Destinos.VistaPodcast.ruta}/{podcastJson}",
+            arguments = listOf(navArgument("podcastJson") {
+                type = NavType.StringType
+            })
+        ) { backStackEntry ->
+            val podcastJson = backStackEntry.arguments?.getString("podcastJson")
+            val podcast = Gson().fromJson(podcastJson, Contenido.Podcast::class.java)
+            val podcastViewModel: PodcastViewModel = viewModel(
+                factory = PodcastViewModelFactory(
+                    PodcastRepository(FirebaseFirestore.getInstance()), // Reemplaza con tu repositorio
+                    FirebaseAuth.getInstance(),
+                    FirebaseFirestore.getInstance()
+                )
+            )
+            ScaffoldContent { innerPadding ->
+                VistaPodcast(podcast, innerPadding, podcastViewModel)
+            }
+        }
+        composable(Destinos.FormularioPodcast.ruta) { backStackEntry ->
+            val podcastViewModel: PodcastViewModel = viewModel(
+                factory = PodcastViewModelFactory(
+                    PodcastRepository(FirebaseFirestore.getInstance()), // Reemplaza con tu repositorio
+                    FirebaseAuth.getInstance(),
+                    FirebaseFirestore.getInstance()
+                )
+            )
+            LaunchedEffect(podcastViewModel.navegarAInformacion.collectAsState().value) {
+                if (podcastViewModel.navegarAInformacion.value) {
+                    navController.navigate(Destinos.VistaPodcast.ruta) // Reemplaza con tu ruta
+                    podcastViewModel.resetNavegarAInformacion()
+                }
+            }
+            ScaffoldContent { innerPadding ->
+                FormularioPodcast(
+                    innerPadding, // Pasa innerPadding primero
+                    podcastViewModel,
+                    navController
+                )
+            }
+        }
+
+
+        // Formularios
+        composable(Destinos.FormularioNoticia.ruta) {
+            ScaffoldContent { innerPadding ->
+                FormularioNoticia(
+                    innerPadding,
+                    navController
+                )
+            }
+        }
+        //composable(Destinos.FormularioPodcast.ruta) { ScaffoldContent { innerPadding -> FormularioPodcast(innerPadding, navController) } }
+        composable(Destinos.FormularioPrograma.ruta) {
+            ScaffoldContent { innerPadding ->
+                FormularioPrograma(
+                    innerPadding,
+                    navController
+                )
+            }
+        }
+        //composable(Destinos.FormularioBanner.ruta) { ScaffoldContent { innerPadding -> FormularioBanner(innerPadding, navController) } }
+
+        composable(Destinos.UsuarioPerfilScreen.ruta) {
+            val usuarioRepository = UsuarioRepository()
+            val usuarioPerfilViewModel: UsuarioPerfilViewModel = viewModel(
+                factory = UsuarioPerfilViewModelFactory(usuarioRepository, authService)
+            )
+            ScaffoldContent { innerPadding ->
+                UsuarioPerfilScreen(usuarioPerfilViewModel, navController)
+            }
+        }
+
 
     }
 

@@ -6,22 +6,14 @@ package com.jcmateus.casanarestereo.screens.login
 
 //import kotlinx.coroutines.DefaultExecutor.delay
 import android.content.Context
-import android.util.Log
-import android.util.Patterns
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 class LoginScreenViewModel(
     private val dataStoreManager: DataStoreManager,
@@ -29,20 +21,17 @@ class LoginScreenViewModel(
     private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
-    // Estado de carga
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // Estado de autenticación (obtenido de AuthService)
-    val authState: StateFlow<EstadoAutenticacion> = authService.authState
-
-    // Mensaje de error
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // Mensaje de éxito
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
+
+    private val _authState = MutableStateFlow<EstadoAutenticacion>(EstadoAutenticacion.Loading)
+    val authState: StateFlow<EstadoAutenticacion> = _authState.asStateFlow()
 
     fun clearErrorMessage() {
         _errorMessage.value = null
@@ -51,106 +40,87 @@ class LoginScreenViewModel(
     fun clearSuccessMessage() {
         _successMessage.value = null
     }
-    /*
-    init {
-        viewModelScope.launch {
-                if (dataStoreManager.getIsLoggedIn().first()) {
-                authService.actualizarEstadoAutenticacion()
-            }
-        }
-    }
-     */
 
-    // Iniciar sesión con Google
-    fun iniciarSesionConGoogle(context: Context, credential: AuthCredential, rol: Rol?) {
+    fun crearUsuarioConCorreoYContrasena(
+        email: String,
+        password: String,
+        checkTerminos: Boolean,
+        selectedRol: Rol?,
+        function: () -> Unit
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
-            val user = authService.iniciarSesionConGoogle(credential, rol)
-            _isLoading.value = false
-
-            if (user != null) {
-                dataStoreManager.saveIsLoggedIn(true)
-                dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
-                _successMessage.value = "¡Logueado con éxito!"
-
-            } else {
-                _errorMessage.value = "Error al iniciar sesión con Google."
-            }
-        }
-    }
-
-    // Iniciar sesión con correo electrónico y contraseña
-    fun iniciarSesionConCorreoYContrasena(context: Context, email: String, password: String, rol: Rol?, home: () -> Unit) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val user = authService.iniciarSesionConCorreoYContrasena(email, password, rol)
-            _isLoading.value = false
-
-            if (user != null) {
-                dataStoreManager.saveIsLoggedIn(true)
-                dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
-                _successMessage.value = "¡Logueado con éxito!"
-                home()
-            } else {
-                _errorMessage.value = "Error al iniciar sesión con correo electrónico y contraseña."
-            }
-        }
-    }
-
-    // Crear usuario con correo electrónico y contraseña
-    fun crearUsuarioConCorreoYContrasena(email: String, password: String, checkTerminos: Boolean, rol: Rol?, home: () -> Unit) {
-        viewModelScope.launch {
-            _isLoading.value = true
-
-            val valido = email.trim().isNotEmpty() && password.trim().isNotEmpty() && checkTerminos
-            if (valido) {
-                if (!authService.isValidEmail(email)) {
-                    _errorMessage.value = "Correo electrónico inválido"
-                    _isLoading.value = false
-                    return@launch
-                }
-                if (password.length < 6) {
-                    _errorMessage.value = "La contraseña debe tener al menos 6 caracteres"
-                    _isLoading.value = false
-                    return@launch
-                }
-
-                // Crear usuario en Firebase Authentication
-                val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await() // Assuming firebaseAuth is accessible
-                if (authResult.user != null) {
-                    val displayName = authResult.user?.email?.split("@")?.get(0)
-
-                    // Crear usuario en Firestore usando AuthService
-                    val userCreated = authService.createUser(displayName, rol)
-
-                    if (userCreated) {
-                        dataStoreManager.guardarRolUsuario(rol ?: Rol.USUARIO)
-                        _successMessage.value = "¡Cuenta creada con éxito!"
-                        home()
-                        dataStoreManager.saveTermsAccepted(true) // Guarda que los términos fueron aceptados
-                    } else {
-                        _errorMessage.value = "Error al crear la cuenta en Firestore."
-                    }
+            try {
+                if (selectedRol != null) {
+                    authService.crearUsuarioConCorreoYContrasena(
+                        email,
+                        password,
+                        checkTerminos,
+                        selectedRol
+                    )
+                    _successMessage.value = "Usuario creado exitosamente"
                 } else {
-                    _errorMessage.value = "Error al crear la cuenta en Firebase Authentication."
+                    _errorMessage.value = "Debes seleccionar un rol"
                 }
-            } else {
-                _errorMessage.value = "Debes aceptar las notificaciones y los términos y condiciones."
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al crear el usuario: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
-
-            _isLoading.value = false
         }
     }
 
-    // Cerrar sesión
-    fun cerrarSesion() {
+    fun iniciarSesionConCorreoYContrasena(
+        context: Context,
+        email: String,
+        password: String,
+        selectedRol: Rol?,
+        function: () -> Unit
+    ) {
         viewModelScope.launch {
-            authService.cerrarSesion()
-            dataStoreManager.saveIsLoggedIn(false)
+            _isLoading.value = true
+            try {
+                if (selectedRol != null) {
+                    authService.iniciarSesionConCorreoYContrasena(
+                        context.toString(),
+                        email,
+                        password,
+                        selectedRol
+                    )
+                } else {
+                    _errorMessage.value = "Debes seleccionar un rol"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al iniciar sesión: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun iniciarSesionConGoogle(
+        context: Context,
+        credential: AuthCredential,
+        selectedRol: Rol?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                if (selectedRol != null) {
+                    authService.iniciarSesionConGoogle(context, credential, selectedRol)
+                    onSuccess()
+                } else {
+                    _errorMessage.value = "Debes seleccionar un rol"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error al iniciar sesión con Google: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 }
-
 
 
 

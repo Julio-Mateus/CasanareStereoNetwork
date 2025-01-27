@@ -9,16 +9,12 @@ package com.jcmateus.casanarestereo.screens.login
 //import androidx.compose.ui.graphics.ColorFilter
 //import com.google.android.gms.auth.api.signin.GoogleSignIn
 import android.Manifest
-import android.R.attr.data
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -82,6 +78,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -95,36 +92,22 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignIn.getClient
-import com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.home.Destinos
-import com.jcmateus.casanarestereo.screens.usuarios.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.PerfilEmisora
-import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class CasanareLoginActivity : ComponentActivity() {
-    @SuppressLint("ViewModelConstructorInComposable")
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val navController =
-            (application as HomeApplication).navController // Obtener navController de la aplicación
-        setContent {
-            CasanareStereoTheme {
-                CasanareLoginScreen(
-                    navController = navController,
-                    emisoraViewModel = EmisoraViewModel()
-                )
-            }
-        }
-    }
-}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -137,7 +120,10 @@ fun CasanareLoginScreen(
     val viewModel: LoginScreenViewModel = remember {
         LoginScreenViewModelFactory(
             dataStoreManager,
-            authService = AuthService(application.firebaseAuth), // Pasar firebaseAuth a AuthService
+            authService = AuthService(
+                application.firebaseAuth,
+                application.dataStoreManager
+            ), // Pasar firebaseAuth a AuthService
             firebaseAuth = application.firebaseAuth // Pasar firebaseAuth a LoginScreenViewModelFactory
         ).create(LoginScreenViewModel::class.java)
     }
@@ -166,6 +152,11 @@ fun CasanareLoginScreen(
     var email by remember { mutableStateOf("") }
     var configuracionInicialCompleta by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
+    var rolUsuario by remember { mutableStateOf(Rol.NO_DEFINIDO) } // Cambiar el tipo a Rol y usar NO_DEFINIDO como valor inicial
+    LaunchedEffect(key1 = Unit) {
+        rolUsuario = dataStoreManager.getRolUsuario()
+            .first() // Reemplazar obtenerRolUsuario() con getRolUsuario()
+    }
     val authState = viewModel.authState.collectAsStateWithLifecycle()
     //val currentAuthState by authState.collectAsState() // Convertir a State
     val launcher = rememberLauncherForActivityResult(
@@ -173,11 +164,26 @@ fun CasanareLoginScreen(
     ) { result -> // Cambiar el nombre del parámetro a 'result'
         if (result.resultCode == Activity.RESULT_OK) { // Verificar si el resultado es OK
             val data: Intent? = result.data // Obtener el intent de resultado
-            val task = GoogleSignIn.getSignedInAccountFromIntent(data) // Pasar el intent de resultado
+            val task =
+                GoogleSignIn.getSignedInAccountFromIntent(data) // Pasar el intent de resultado
             try {
                 val account = task.getResult(ApiException::class.java)!!
                 val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-                viewModel.iniciarSesionConGoogle(context, credential, selectedRol)
+                viewModel.iniciarSesionConGoogle(context, credential, selectedRol) {
+                    // Navegar después del inicio de sesión exitoso
+                    val destination = when (selectedRol) {
+                        Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
+                        Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
+                        else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             } catch (e: ApiException) {
                 // Google Sign In failed, update UI appropriately
                 Log.w("Google sign in failed", e)
@@ -247,34 +253,25 @@ fun CasanareLoginScreen(
         showDialog = dataStoreManager.getShowDialog()
         locationPermissionGranted = dataStoreManager.getLocationPermissionGranted()
     }
-    LaunchedEffect(key1 = authState.value) {
-        Log.d("CasanareLoginScreen", "LaunchedEffect activado. authState: ${authState.value}")
+    LaunchedEffect(key1 = authState.value, key2 = rolUsuario) {
+        Log.d(
+            "CasanareLoginScreen",
+            "LaunchedEffect activado. authState: ${authState.value}, rolUsuario: $rolUsuario"
+        )
         when (authState.value) {
             is EstadoAutenticacion.LoggedIn -> {
-                if (selectedRol != null) { // Verificar si se ha seleccionado un rol
-                    // Verificar si la configuración inicial está completa
-                    if (configuracionInicialCompleta) {
-                        // Si es una emisora y el perfil no está completo, navegar a perfil_emisora
-                        if (selectedRol == Rol.EMISORA && emisoraViewModel.perfilEmisora.value == PerfilEmisora()) {
-                            Destinos.FormularioPerfilEmisora.ruta
-                        } else {
-                            // Si el perfil está completo o es un usuario, navegar a la vista correspondiente
-                            val destination = when (selectedRol) {
-                                Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
-                                Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
-                                else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto si selectedRol es nulo
-                            }
-                            navController.navigate(destination) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
+                if (rolUsuario != null) { // Verificar si se ha seleccionado un rol
+                    // Si es una emisora y el perfil no está completo, navegar a perfil_emisora
+                    if (rolUsuario == Rol.EMISORA && emisoraViewModel.perfilEmisora.value == PerfilEmisora()) {
+                        navController.navigate(Destinos.FormularioPerfilEmisora.ruta)
                     } else {
-                        // Si la configuración inicial no está completa, navegar a la pantalla de selección de roles
-                        navController.navigate(PantallaFormulario.SeleccionRol.ruta) {
+                        // Si el perfil está completo o es un usuario, navegar a la vista correspondiente
+                        val destination = when (rolUsuario) {
+                            Rol.EMISORA -> Destinos.EmisoraVista.ruta // O la ruta para la vista de la emisora
+                            Rol.USUARIO -> Destinos.HomeCasanareVista.ruta // O la ruta para la vista del usuario
+                            else -> Destinos.HomeCasanareVista.ruta // Ruta por defecto si selectedRol es nulo
+                        }
+                        navController.navigate(destination) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -284,6 +281,11 @@ fun CasanareLoginScreen(
                     }
                 }
             }
+            is EstadoAutenticacion.LoggedInWithPendingRol -> {
+                // Aquí puedes manejar el caso en que el usuario ha iniciado sesión pero el rol aún no se ha cargado.
+                // Por ejemplo, puedes mostrar un indicador de carga o esperar a que el rol se cargue.
+                Log.d("CasanareLoginScreen", "Usuario logueado, esperando rol...")
+            }
 
             EstadoAutenticacion.LoggedOut -> {
                 // El usuario no ha iniciado sesión, no se necesita hacer nada aquí
@@ -292,6 +294,8 @@ fun CasanareLoginScreen(
             EstadoAutenticacion.Loading -> {
                 // Otros estados (por ejemplo, cargando), puedes mostrar un indicador de progreso si lo deseas
             }
+
+            is EstadoAutenticacion.Error -> TODO()
         }
     }
     if (showDialog) {
@@ -484,7 +488,9 @@ fun CasanareLoginScreen(
                                         password.toString(),
                                         CheckTerminos,
                                         selectedRol
-                                    ) {}
+                                    ) {
+
+                                    }
                                 }
                             } else {
                                 // Iniciar sesión
@@ -693,7 +699,8 @@ fun UserForm(
 
 enum class Rol {
     USUARIO,
-    EMISORA
+    EMISORA,
+    NO_DEFINIDO
 }
 
 @Composable
@@ -740,7 +747,8 @@ fun SubmitButton(
 fun PasswordInput(
     passwordState: MutableState<String>,
     labelId: String,
-    passwordVisible: MutableState<Boolean>
+    passwordVisible: MutableState<Boolean>,
+    imeAction: ImeAction = ImeAction.Done // Añadido: Acción del teclado
 ) {
     val visualTransformation = if (passwordVisible.value)
         VisualTransformation.None
@@ -750,21 +758,31 @@ fun PasswordInput(
         onValueChange = { passwordState.value = it },
         label = { Text(text = labelId, color = MaterialTheme.colorScheme.onPrimary) },
         singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(Color.White),
+        colors = OutlinedTextFieldDefaults.colors(
+            // Usamos los parámetros correctos de OutlinedTextFieldDefaults.colors()
+            focusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando está enfocado
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando no está enfocado
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando está enfocado
+            unfocusedBorderColor = Color.White, // Color del borde cuando no está enfocado
+            cursorColor = MaterialTheme.colorScheme.onPrimary, // Color del cursor
+        ),
         keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Password
+            keyboardType = KeyboardType.Password,
+            imeAction = imeAction // Añadido: Acción del teclado
         ),
         modifier = Modifier
             .padding(bottom = 10.dp, start = 10.dp, end = 10.dp)
             .fillMaxWidth(),
-        //MaterialTheme.colorScheme.inverseOnSurface,
         visualTransformation = visualTransformation,
         trailingIcon = {
             if (passwordState.value.isNotBlank()) {
                 PasswordVisibleIcon(passwordVisible)
             }
         },
-        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onBackground)
+        textStyle = TextStyle(
+            color = MaterialTheme.colorScheme.onBackground, // Color del texto
+            fontSize = 18.sp // Tamaño de la fuente
+        )
     )
 
 }
@@ -793,12 +811,14 @@ fun PasswordVisibleIcon(
 @Composable
 fun EmailInput(
     emailState: MutableState<String>,
-    labelId: String = "Email"
+    labelId: String = "Email",
+    imeAction: ImeAction = ImeAction.Next
 ) {
     InputField(
         valueState = emailState,
         labelId = labelId,
         keyboardType = KeyboardType.Email,
+        imeAction = imeAction
 
         )
 
@@ -809,7 +829,8 @@ fun InputField(
     valueState: MutableState<String>,
     labelId: String,
     isSingleLine: Boolean = true,
-    keyboardType: KeyboardType
+    keyboardType: KeyboardType,
+    imeAction: ImeAction = ImeAction.Next // Añadido: Acción del teclado
 ) {
     OutlinedTextField(
         value = valueState.value,
@@ -819,13 +840,24 @@ fun InputField(
         modifier = Modifier
             .padding(bottom = 10.dp, start = 10.dp, end = 10.dp)
             .fillMaxWidth(),
-        colors = OutlinedTextFieldDefaults.colors(Color.White),
-        keyboardOptions = KeyboardOptions(
-            keyboardType = keyboardType
-        ),
-        textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground)
-    )
+        colors = OutlinedTextFieldDefaults.colors(
+            // Usamos los parámetros correctos de OutlinedTextFieldDefaults.colors()
+            focusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando está enfocado
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando no está enfocado
+            focusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando está enfocado
+            unfocusedBorderColor = Color.White, // Color del borde cuando no está enfocado
+            cursorColor = MaterialTheme.colorScheme.onPrimary, // Color del cursor
 
+        ),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = imeAction // Añadido: Acción del teclado
+        ),
+        textStyle = TextStyle(
+            color = MaterialTheme.colorScheme.onBackground, // Color del texto
+            fontSize = 18.sp // Tamaño de la fuente
+        )
+    )
 }
 
 @SuppressLint("ViewModelConstructorInComposable")
@@ -834,7 +866,19 @@ fun InputField(
 fun PreviewContent() {
     val context = LocalContext.current
     val navController = remember { NavHostController(context) }
-    CasanareLoginScreen(navController, emisoraViewModel = EmisoraViewModel())
+    val firebaseAuth = FirebaseAuth.getInstance() // Crea una instancia de FirebaseAuth
+    val db = FirebaseFirestore.getInstance()
+    val repository = EmisoraRepository(firebaseAuth, db)
+    val viewModelFactory = EmisoraViewModelFactory(
+        repository,
+        firebaseAuth
+    ) // Crea una instancia de EmisoraViewModelFactory
+    val emisoraViewModel =
+        viewModelFactory.create(EmisoraViewModel::class.java) // Crea una instancia de EmisoraViewModel
+    CasanareLoginScreen(
+        navController,
+        emisoraViewModel = emisoraViewModel
+    ) // Pasa la instancia de emisoraViewModel a CasanareLoginScreen
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
