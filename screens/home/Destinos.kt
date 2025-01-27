@@ -1,8 +1,9 @@
 package com.jcmateus.casanarestereo.screens.home
 
-import com.jcmateus.casanarestereo.R
 
+import com.jcmateus.casanarestereo.R
 sealed class Destinos(
+
     val icon: Int?,
     val title: String,
     val ruta: String
@@ -33,22 +34,30 @@ sealed class Destinos(
     //Emisora
     data object EmisoraVista : Destinos( icon = null, title = "Emisora", ruta = "EmisoraVista")
     data object FormularioPerfilEmisora : Destinos( icon = null, title = "FormularioEmisora", ruta = "FormularioPerfilEmisora")
+    data object EmisoraDetalles : Destinos(icon = null, title = "EmisoraDetalles", ruta = "EmisoraDetalles")
 
     //Noticias
     data object VistaNoticia : Destinos( icon = null, title = "Noticias", ruta = "VistaNoticia")
     data object FormularioNoticia : Destinos( icon = null, title = "FormularioNoticia", ruta = "FormularioNoticia")
+    data object NoticiasScreen : Destinos(icon = null, title = "NoticiasScreen", ruta = "NoticiasScreen")
+    data object VistaNoticiaUsuario : Destinos(icon = null, title = "VistaNoticiaUsuario", ruta = "VistaNoticiaUsuario")
 
     //Podcast
     data object VistaPodcast : Destinos( icon = null, title = "Podcast", ruta = "PodcastVista")
     data object FormularioPodcast : Destinos( icon = null, title = "FormularioPodcast", ruta = "FormularioPodcast")
+    data object ListaPodcast : Destinos(icon = null, title = "ListaPodcast", ruta = "ListaPodcast")
 
     //Programacion
     data object VistaPrograma : Destinos( icon = null, title = "Programacion", ruta = "VistaPrograma")
     data object FormularioPrograma : Destinos( icon = null, title = "FormularioPrograma", ruta = "FormularioPrograma")
+    data object ListaPrograma : Destinos(icon = null, title = "ListaPrograma", ruta = "ListaPrograma")
 
     //Banner
     data object VistaBanner : Destinos( icon = null, title = "Banner", ruta = "BannerVista")
     data object FormularioBanner : Destinos( icon = null, title = "FormularioBanner", ruta = "FormularioBanner")
+
+    //Usuario
+    data object UsuarioPerfilScreen : Destinos( icon = null, title = "UsuarioPerfilScreen", ruta = "UsuarioPerfilScreen")
 
 
 

@@ -30,6 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -43,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
 import com.google.gson.Gson
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
@@ -55,14 +59,16 @@ import kotlin.toString
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostController) {
+fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostController, noticiaId: String? = null) {
     // Obtener la fábrica de ViewModel
     val factory =
-        (LocalContext.current.applicationContext as HomeApplication).emisoraViewModelFactory
+        (LocalContext.current.applicationContext as HomeApplication).noticiaViewModelFactory
 
     // Obtener el ViewModel utilizando la fábrica
-    val emisoraViewModel: EmisoraViewModel = viewModel(factory = factory)
-    val noticiaGuardada by emisoraViewModel.noticiaGuardada.collectAsState()
+    val noticiaViewModel: NoticiaViewModel = viewModel(factory = factory)
+    val noticiaGuardada by noticiaViewModel.noticiaGuardada.collectAsState()
+    val errorGuardandoNoticia by noticiaViewModel.errorGuardandoNoticia.collectAsState()
+    val noticiaUiState by noticiaViewModel.noticiaUiState.collectAsState()
 
     var titulo by remember { mutableStateOf("") }
     var imagenUri by remember { mutableStateOf<Uri?>(null) }
@@ -73,13 +79,44 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
     var contenido by remember { mutableStateOf("") }
     var ubicacion by remember { mutableStateOf("") }
     var etiqueta by remember { mutableStateOf("") }
+    var categoria by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    val categorias = listOf("Regional", "Nacional", "Internacional")
+    var isEditing by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+
+    LaunchedEffect(key1 = noticiaId) {
+        if (noticiaId != null) {
+            noticiaViewModel.obtenerNoticia(noticiaId)
+            isEditing = true
+        }
+    }
+
+    val noticia by noticiaViewModel.noticia.collectAsState()
+    LaunchedEffect(key1 = noticia) {
+        noticia?.let {
+            titulo = it.tituloNoticia
+            imagenUri = Uri.parse(it.imagenUriNoticia)
+            fuente = it.fuenteNoticia
+            fechaPublicacion = it.fechaPublicacionNoticia
+            autor = it.autorNoticia
+            enlace = it.enlaceNoticia
+            contenido = it.contenidoNoticia
+            ubicacion = it.ubicacionNoticia
+            etiqueta = it.etiquetaNoticia
+            categoria = it.categoria
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imagenUri = uri
+        // Call actualizarImagenNoticia when a new image is selected
+        if (uri != null) {
+            noticiaViewModel.actualizarImagenNoticia(uri)
+        }
     }
 
     Scaffold(
@@ -115,13 +152,19 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                             contenido,
                             ubicacion,
                             etiqueta,
-                            id = ""
-                        )
-                        emisoraViewModel.guardarNoticia(noticia)
+                            id = noticia?.id ?: "",
+                            categoria = categoria
 
-                        // Navegar a VistaNoticia
-                        navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri?.toString())
-                        navController.navigate("${Destinos.VistaNoticia.ruta}/${Gson().toJson(noticia)}")
+                        )
+                        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+                        if (isEditing) {
+                            // Call actualizarNoticia when editing
+                            noticiaViewModel.actualizarNoticia(noticiaId!!, noticia)
+                        } else {
+                            // Call guardarNoticia when creating a new noticia
+                            noticiaViewModel.guardarNoticia(noticia, userId)
+                        }
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
                     }
@@ -205,6 +248,35 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                 label = { Text("Etiqueta") },
                 modifier = Modifier.fillMaxWidth()
             )
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = categoria,
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Categoría") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    categorias.forEach { selectedCategoria ->
+                        DropdownMenuItem(
+                            text = { Text(text = selectedCategoria) },
+                            onClick = {
+                                categoria = selectedCategoria
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             Button(onClick = {
                 val noticia = Contenido.Noticia(
@@ -217,13 +289,17 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                     contenido,
                     ubicacion,
                     etiqueta,
-                    id = ""
+                    id = noticia?.id ?: "",
+                    categoria = categoria
                 )
-                emisoraViewModel.guardarNoticia(noticia)
-
-                // Navegar a VistaNoticia
-                navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri?.toString())
-                navController.navigate("${Destinos.VistaNoticia.ruta}/${Gson().toJson(noticia)}")
+                val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                if (isEditing) {
+                    // Call actualizarNoticia when editing
+                    noticiaViewModel.actualizarNoticia(noticiaId!!, noticia)
+                } else {
+                    // Call guardarNoticia when creating a new noticia
+                    noticiaViewModel.guardarNoticia(noticia, userId)
+                }
             }) {
                 Text("Guardar")
             }
@@ -231,20 +307,46 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
 
         // Utilizar un LaunchedEffect para la navegación
         LaunchedEffect(key1 = noticiaGuardada) {
-    if (noticiaGuardada) {
-        // Obtener la noticia guardada
-        val noticia = emisoraViewModel.obtenerNoticiaGuardada()
+            if (noticiaGuardada) {
+                // La noticia se guardó correctamente
+                // Restablecer el estado de noticiaGuardada
+                noticiaViewModel.restablecerNoticiaGuardada()
 
-        val gson = Gson()
-        val noticiaJson = gson.toJson(noticia)
+                // Navegar a la vista de detalle
+                navController.navigate(Destinos.VistaNoticia.ruta)
+            }
+        }
+        // Handle error state
+        LaunchedEffect(key1 = errorGuardandoNoticia) {
+            if (errorGuardandoNoticia != null) {
+                Toast.makeText(
+                    context,
+                    "Error al guardar la noticia: $errorGuardandoNoticia", // Usar la variable errorGuardandoNoticia
+                    Toast.LENGTH_LONG
+                ).show()
+                noticiaViewModel.restablecerErrorGuardandoNoticia()
+            }
+        }
+        // Handle UI state changes
+        when (noticiaUiState) { // Usar la variable noticiaUiState
+            is NoticiaUiState.Loading -> {
+                // Show loading indicator
+            }
 
-        // Guardar la URI de la imagen en el savedStateHandle
-        navController.currentBackStackEntry?.savedStateHandle?.set("imageUri", imagenUri)
+            is NoticiaUiState.Success -> {
+                // Handle success state
+            }
 
-        navController.navigate("${Destinos.VistaNoticia.ruta}/$noticiaJson")
-        emisoraViewModel.restablecerNoticiaGuardada() // Restablecer el estado
-    }
-}
+            is NoticiaUiState.Error -> {
+                // Show error message
+                Toast.makeText(
+                    context,
+                    "Error: ${(noticiaUiState as NoticiaUiState.Error).message}", // Usar la variable noticiaUiState
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
     }
 }
 

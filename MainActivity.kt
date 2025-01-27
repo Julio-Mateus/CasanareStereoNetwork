@@ -3,9 +3,12 @@ package com.jcmateus.casanarestereo
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 //import com.jcmateus.casanarestereo.navigation.AuthenticationNavHost
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -46,10 +49,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
+import com.google.firebase.Firebase
+import com.google.firebase.appcheck.BuildConfig
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.initialize
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
@@ -58,20 +69,74 @@ import com.jcmateus.casanarestereo.screens.home.createLoginViewModel
 import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.MyLocationManager
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private lateinit var myLocationManager: MyLocationManager
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Configurar Firebase App Check
+        configureFirebaseAppCheck()
         val navController = (application as HomeApplication).navController
+        myLocationManager = MyLocationManager(this)
+
         setContent {
             CasanareStereoTheme {
                 navController.setViewModelStore(ViewModelStore())
                 MainScreen(navController)
-                //NavigationHost( navController, PaddingValues())
-                //PantallaPresentacion(navController)
             }
+        }
+        lifecycleScope.launch {
+            if (checkLocationPermissions()) {
+                val location = myLocationManager.getLastKnownLocation()
+                if (location != null) {
+                    Log.d("MainActivity", "Ubicación obtenida: ${location.latitude}, ${location.longitude}")
+                    (application as HomeApplication).emisoraViewModel.getEmisorasCercanas(location)
+                } else {
+                    Log.e("MainActivity", "No se pudo obtener la ubicación")
+                    // Puedes mostrar un mensaje al usuario o usar una ubicación por defecto
+                }
+            }
+        }
+    }
+
+    private fun checkLocationPermissions(): Boolean {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // Los permisos no están concedidos, solicitarlos
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                100
+            )
+            return false
+        }
+        return true
+    }
+    private fun configureFirebaseAppCheck() {
+        Firebase.initialize(this)
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+        if (BuildConfig.DEBUG) {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                DebugAppCheckProviderFactory.getInstance() // Usar directamente DebugAppCheckProviderFactory.getInstance()
+            )
+        } else {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            )
         }
     }
 }
@@ -81,32 +146,38 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(navController: NavHostController) {
     val application = LocalContext.current.applicationContext as HomeApplication
-    val authService = AuthService(application.firebaseAuth) // Acceder a firebaseAuth desde HomeApplication
+    val authService = AuthService(application.firebaseAuth, application.dataStoreManager) // Acceder a firebaseAuth desde HomeApplication
     val loginViewModel = createLoginViewModel(application)
+    val emisoraViewModel = application.emisoraViewModel
+    val podcastViewModel = application.podcastViewModel
+    val usuarioViewModel = application.usuarioViewModel
+    val usuarioPerfilViewModel = application.usuarioPerfilViewModel
 
     CasanareStereoTheme {
-        NavigationHost(navController, PaddingValues(), loginViewModel, formularioViewModel = FormularioViewModel(), authService)
+        NavigationHost(
+            navController,
+            PaddingValues(),
+            loginViewModel,
+            formularioViewModel = FormularioViewModel(),
+            authService,
+            emisoraViewModel,
+            podcastViewModel,
+            usuarioViewModel,
+            dataStoreManager = application.dataStoreManager,
+            usuarioPerfilViewModel
+        )
     }
 }
 
 @Composable
 fun PantallaPresentacion(navController: NavHostController, loginViewModel: LoginScreenViewModel) {
-    var user by remember { mutableStateOf<FirebaseUser?>(null) }
-    val authListener = FirebaseAuth.AuthStateListener { auth ->
-        user = auth.currentUser
-    }
     var showAnimation by remember { mutableStateOf(false) }
     var animationMessage by remember { mutableStateOf("") }
-    DisposableEffect(authListener) {
-        FirebaseAuth.getInstance().addAuthStateListener(authListener)
-        onDispose {
-            FirebaseAuth.getInstance().removeAuthStateListener(authListener)
-        }
-    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // Usamos el color de fondo del tema
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Imagen de fondo
         Image(
@@ -115,14 +186,14 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             colorFilter = ColorFilter.tint(
-                Color.Black.copy(alpha = 0.7f), // Oscurecemos la imagen con un filtro de color
+                Color.Black.copy(alpha = 0.7f),
                 blendMode = BlendMode.Darken
             )
         )
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp), //Padding consistente
+                .padding(16.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -130,15 +201,14 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 text = "BIENVENIDO A:",
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 43.sp,
-                color = MaterialTheme.colorScheme.onBackground, // Color del texto sobre el fondo
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(32.dp))
             Image(
-                painter = painterResource(id = R.drawable.logo1), // Reemplaza con tu imagen
+                painter = painterResource(id = R.drawable.logo1),
                 contentDescription = "Logo",
-                modifier = Modifier
-                    .size(120.dp) // Establece el tamaño del logo
+                modifier = Modifier.size(120.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -147,33 +217,26 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "DONDE LATE EL CORAZÓN DEL LLANO",
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(48.dp))
             Button(
                 onClick = {
-                    if (user != null) {
-                        navController.navigate(Destinos.HomeCasanareVista.ruta) {
-                            launchSingleTop = true
-                        }
-                    } else {
-                        navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                            launchSingleTop = true
-                        }
+                    navController.navigate(Destinos.CasanareLoginScreen.ruta) {
+                        launchSingleTop = true
                     }
                     // Mostrar mensaje o animación con la información del usuario
                     val currentUser = loginViewModel.authState.value
                     if (currentUser is EstadoAutenticacion.LoggedIn) {
                         // Accede a la información del usuario (correo o nombre)
-                        val userEmail =
-                            currentUser.user?.email ?: "" // O currentUser.user?.displayName
+                        val userEmail = currentUser.user?.email ?: ""
 
                         // Actualiza el estado para mostrar el Snackbar
                         showAnimation = true
@@ -183,8 +246,8 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .height(56.dp), // Alto del botón
-                shape = MaterialTheme.shapes.medium, // Usamos las formas del tema
+                    .height(56.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -202,7 +265,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     Text(
                         animationMessage,
                         fontSize = 20.sp
-                    ) // Puedes reemplazar esto con tu animación
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -216,7 +279,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     .height(56.dp),
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onBackground // Color del texto del botón
+                    contentColor = MaterialTheme.colorScheme.onBackground
                 )
             ) {
                 Text(
@@ -239,7 +302,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     "Registrate",
                     modifier = Modifier
                         .clickable {
-
+                            navController.navigate(Destinos.CasanareLoginScreen.ruta)
                         }
                         .padding(start = 5.dp),
                     color = MaterialTheme.colorScheme.error,

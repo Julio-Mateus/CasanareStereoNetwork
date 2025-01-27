@@ -1,7 +1,9 @@
 package com.jcmateus.casanarestereo
 
+
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.Text
@@ -65,91 +68,128 @@ import kotlinx.coroutines.flow.first
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun SplashScreen(navController: NavHostController, authService: AuthService) {
-    val application = LocalContext.current.applicationContext as HomeApplication
-    val dataStoreManager = application.dataStoreManager
-    val viewModel: LoginScreenViewModel = remember {
-        LoginScreenViewModelFactory(
-            dataStoreManager,
-            authService,
-            application.firebaseAuth // Pasar firebaseAuth desde HomeApplication
-        ).create(LoginScreenViewModel::class.java)
-    }
-    val authState = viewModel.authState.collectAsStateWithLifecycle() // Use collectAsStateWithLifecycle
+fun SplashScreen(
+    navController: NavHostController,
+    authService: AuthService,
+    loginViewModel: LoginScreenViewModel, // Recibir LoginScreenViewModel como parámetro
+    dataStoreManager: DataStoreManager // Recibir dataStoreManager como parámetro
+) {
+    val context = LocalContext.current
+    val authState = authService.authState.collectAsStateWithLifecycle()
+    var isFirstTime by remember { mutableStateOf(true) }
+    var hasShownPresentation by remember { mutableStateOf(false) }
+    var userRole by remember { mutableStateOf(Rol.NO_DEFINIDO) }
 
-    LaunchedEffect(key1 = authState.value) {
+    LaunchedEffect(key1 = Unit) {
+        isFirstTime = dataStoreManager.isFirstTimeAppOpen().first()
+        hasShownPresentation = dataStoreManager.getHasShownPresentation().first()
+        userRole = dataStoreManager.getRolUsuario().first()
+    }
+    var currentAuthState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
+    LaunchedEffect(authState.value, isFirstTime, hasShownPresentation, userRole) {
         Log.d("SplashScreen", "Estado de autenticación: ${authState.value}")
-        delay(5000)
-        when (authState.value) {
-            is EstadoAutenticacion.LoggedIn -> {
-                delay(100)
-                // Verificar si el usuario ha seleccionado un rol
-                val userRole = dataStoreManager.getRolUsuario().first()
-                Log.d("SplashScreen", "Rol de usuario recuperado: $userRole")
-                if (userRole == Rol.USUARIO || userRole == Rol.EMISORA) {
-                    // El usuario ya ha seleccionado un rol, navegar a la pantalla principal
-                    navController.navigate(Destinos.Pantalla1.ruta)
-                } else {
-                    // El usuario no ha seleccionado un rol, navegar a la pantalla de selección de roles
-                    //navController.navigate(PantallaFormulario.SeleccionRol.ruta)
+        currentAuthState = authState.value
+        if (isFirstTime || !hasShownPresentation) {
+            dataStoreManager.saveAppOpened() // Correcto: Llamar a la función suspend directamente
+            navController.navigate(Destinos.PantallaPresentacion.ruta)
+        } else {
+            when (val state = authState.value) {
+                is EstadoAutenticacion.LoggedIn -> {
+                    Log.d("SplashScreen", "Rol de usuario recuperado: $userRole")
+                    when (userRole) {
+                        Rol.USUARIO -> {
+                            navController.navigate(Destinos.UsuarioPerfilScreen.ruta) // Navegar al perfil de usuario
+                        }
+
+                        Rol.EMISORA -> {
+                            navController.navigate(Destinos.FormularioPerfilEmisora.ruta) // Navegar al perfil de emisora
+                        }
+
+                        Rol.NO_DEFINIDO -> {
+                            navController.navigate(Destinos.CasanareLoginScreen.ruta) // Navegar al login
+                        }
+                    }
                 }
-            }
-            EstadoAutenticacion.LoggedOut -> {
-                // Usuario no ha iniciado sesión, navegar a la pantalla de inicio de sesión
-                navController.navigate(Destinos.CasanareLoginScreen.ruta)
-            }
-            EstadoAutenticacion.Loading -> {
-                // Mostrar la pantalla de carga mientras se verifica el estado de autenticación
+
+                is EstadoAutenticacion.LoggedInWithPendingRol -> {
+                    // Aquí puedes mostrar un indicador de carga o esperar a que el rol se cargue
+                    Log.d("SplashScreen", "Usuario logueado, esperando rol...")
+                }
+
+                EstadoAutenticacion.LoggedOut -> {
+                    navController.navigate(Destinos.CasanareLoginScreen.ruta)
+                }
+
+                EstadoAutenticacion.Loading -> {
+                    // No hacemos nada aquí, el when de abajo se encarga de mostrar el indicador
+                }
+
+                is EstadoAutenticacion.Error -> {
+                    Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
-    @Composable
-    fun Splash() {
-        var visible by remember { mutableStateOf(false) }
-        val alpha by animateFloatAsState(
-            targetValue = if (visible) 1f else 0f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            )
-        )
-        LaunchedEffect(Unit) {
-            visible = true
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (currentAuthState is EstadoAutenticacion.Loading || currentAuthState is EstadoAutenticacion.LoggedInWithPendingRol) {
+            CircularProgressIndicator()
+        }
+    }
+    when (val state = currentAuthState) {
+        EstadoAutenticacion.Loading -> {
+            Splash()
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn(),
-                exit = fadeOut()
+        else -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.logo1),
-                        contentDescription = "Splash Image",
-                        modifier = Modifier
-                            .size(150.dp)
-                            .alpha(alpha)
-                    )
-                    /*
-                    Spacer(modifier = Modifier.height(8.dp)) // Espacio entre imágenes
-                    Image(
-                        painter = painterResource(id = R.drawable.logo), // Reemplaza con tu segunda imagen
-                        contentDescription = "Splash Image 2",
-                        modifier = Modifier.size(140.dp) // Ajusta el tamaño según sea necesario
-                    )
-                     */
-                }
+                CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+            }
+
+        }
+    }
+}
+@Composable
+fun Splash() {
+    var visible by remember { mutableStateOf(false) }
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo1),
+                    contentDescription = "Splash Image",
+                    modifier = Modifier
+                        .size(150.dp)
+                        .alpha(alpha)
+                )
             }
         }
     }
-    Splash()
 }

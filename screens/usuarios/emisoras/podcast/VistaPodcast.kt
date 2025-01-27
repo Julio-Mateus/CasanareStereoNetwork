@@ -33,7 +33,11 @@ import coil.compose.rememberAsyncImagePainter
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 
 @Composable
-fun VistaPodcast(podcast: Contenido.Podcast?, innerPadding: PaddingValues) {
+fun VistaPodcast(
+    podcast: Contenido.Podcast?,
+    innerPadding: PaddingValues,
+    podcastViewModel: PodcastViewModel
+) {
     Column(
         modifier = Modifier
             .padding(innerPadding)

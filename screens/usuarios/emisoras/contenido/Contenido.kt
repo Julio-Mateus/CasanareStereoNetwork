@@ -13,7 +13,8 @@ sealed class Contenido {
         val contenidoNoticia: String,
         val ubicacionNoticia: String,
         val etiquetaNoticia: String,
-        val id : String
+        val id : String,
+        val categoria: String
     ) : Contenido(), Serializable
 
     data class Podcast(

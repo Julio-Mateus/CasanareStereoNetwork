@@ -92,13 +92,18 @@ class HomeFormularioActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val navController = (application as HomeApplication).navController // Obtener navController de la aplicación
+        val application = application as HomeApplication // Obtener la instancia de HomeApplication
+        val navController = application.navController // Obtener navController de la aplicación
+        val emisoraViewModel = application.emisoraViewModel // Obtener emisoraViewModel
+        val podcastViewModel = application.podcastViewModel // Obtener podcastViewModel
+        val usuarioViewModel = application.usuarioViewModel // Obtener usuarioViewModel
+        val authService = AuthService(application.firebaseAuth, application.dataStoreManager)
+
+
         setContent {
             CasanareStereoTheme {
-                val loginViewModel = createLoginViewModel(application as HomeApplication)
+                val loginViewModel = createLoginViewModel(application)
                 val viewModel: FormularioViewModel = viewModel()
-                val context = LocalContext.current.applicationContext
-                val authService = AuthService((application as HomeApplication).firebaseAuth) // Crear instancia de AuthService
 
                 LaunchedEffect(Unit) {
                     navController.navigate(PantallaFormulario.SeleccionRol.ruta)
@@ -108,7 +113,14 @@ class HomeFormularioActivity : ComponentActivity() {
                     innerPadding = PaddingValues(),
                     loginViewModel = loginViewModel,
                     formularioViewModel = viewModel,
-                    authService = authService // Pasar authService a NavigationHost
+                    authService = authService,
+                    emisoraViewModel = emisoraViewModel, // Pasar emisoraViewModel
+                    podcastViewModel = podcastViewModel, // Pasar podcastViewModel
+                    usuarioViewModel = usuarioViewModel, // Pasar usuarioViewModel
+                    dataStoreManager = application.dataStoreManager,
+                    usuarioPerfilViewModel = application.usuarioPerfilViewModel
+
+
                 )
             }
         }

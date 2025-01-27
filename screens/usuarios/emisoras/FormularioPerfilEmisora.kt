@@ -60,6 +60,7 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.MyLocationManager
 
 
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
@@ -82,6 +83,16 @@ fun FormularioPerfilEmisora(
     var departamento by remember { mutableStateOf("") } // Inicializar con valor vacío
     var frecuencia by remember { mutableStateOf("") } // Inicializar con valor vacío
     var imagenPerfilUri by remember { mutableStateOf<Uri?>(null) }
+    var latitud by remember { mutableStateOf(0.0) }
+    var longitud by remember { mutableStateOf(0.0) }
+    val myLocationManager = MyLocationManager(context)
+    LaunchedEffect(key1 = true) {
+        val location = myLocationManager.getLastKnownLocation()
+        if (location != null) {
+            latitud = location.latitude
+            longitud = location.longitude
+        }
+    }
 
     LaunchedEffect(key1 = perfilEmisora) {
         nombreEmisora = perfilEmisora.nombre
@@ -94,8 +105,11 @@ fun FormularioPerfilEmisora(
         imagenPerfilUri = if (perfilEmisora.imagenPerfilUri.isNotBlank()) {
             Uri.parse(perfilEmisora.imagenPerfilUri)
         } else {
-            Uri.parse("android.resource://${context.packageName}/${R.drawable.user_pre}") // URI de la imagen predeterminada
+            Uri.parse("android.resource://${context.packageName}/${R.drawable.user_pre}")
         }
+        // Actualizar latitud y longitud si el perfil ya existe
+        latitud = perfilEmisora.latitud
+        longitud = perfilEmisora.longitud
     }
 
     // Launcher para la selección de imagen
@@ -145,7 +159,9 @@ fun FormularioPerfilEmisora(
                                 paginaWeb = paginaWebEmisora,
                                 ciudad = ciudadEmisora,
                                 departamento = departamento,
-                                frecuencia = frecuencia
+                                frecuencia = frecuencia,
+                                latitud = latitud, // Pasar la latitud
+                                longitud = longitud // Pasar la longitud
                             ),
                             navController
                         )
@@ -285,7 +301,7 @@ fun FormularioPerfilEmisora(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
 
-                ),
+                    ),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     imeAction = ImeAction.Done // Botón de "listo"
@@ -308,7 +324,9 @@ fun FormularioPerfilEmisora(
                             paginaWeb = paginaWebEmisora,
                             ciudad = ciudadEmisora,
                             departamento = departamento,
-                            frecuencia = frecuencia
+                            frecuencia = frecuencia,
+                            latitud = latitud, // Pasar la latitud
+                            longitud = longitud // Pasar la longitud
                         ),
                         navController
                     )
