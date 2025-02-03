@@ -97,7 +97,9 @@ class HomeFormularioActivity : ComponentActivity() {
         val emisoraViewModel = application.emisoraViewModel // Obtener emisoraViewModel
         val podcastViewModel = application.podcastViewModel // Obtener podcastViewModel
         val usuarioViewModel = application.usuarioViewModel // Obtener usuarioViewModel
-        val authService = AuthService(application.firebaseAuth, application.dataStoreManager)
+        val authService = AuthService(application.firebaseAuth, application.db, application.dataStoreManager)
+        val emisoraRepository = application.emisoraRepository
+
 
 
         setContent {
@@ -118,7 +120,8 @@ class HomeFormularioActivity : ComponentActivity() {
                     podcastViewModel = podcastViewModel, // Pasar podcastViewModel
                     usuarioViewModel = usuarioViewModel, // Pasar usuarioViewModel
                     dataStoreManager = application.dataStoreManager,
-                    usuarioPerfilViewModel = application.usuarioPerfilViewModel
+                    usuarioPerfilViewModel = application.usuarioPerfilViewModel,
+                    emisoraRepository = emisoraRepository
 
 
                 )
@@ -243,8 +246,8 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         .width(300.dp)
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Icon(
@@ -262,7 +265,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.surface
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Button(
@@ -272,8 +275,8 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         .width(300.dp)
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Icon(
@@ -291,7 +294,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.surface
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Button(
@@ -303,8 +306,8 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         .width(300.dp)
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        contentColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Icon(
@@ -322,7 +325,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.surface
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -340,19 +343,22 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
     var expandedGenero by remember { mutableStateOf(false) }
     var expandedGrado by remember { mutableStateOf(false) }
     var rotationAngle by remember { mutableFloatStateOf(180f) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var showSnackbar by remember { mutableStateOf(false) }
 
-    Scaffold { innerPadding ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(innerPadding)
-                    .padding(horizontal = 6.dp), // Padding horizontal para centrar el botón
+                    .padding(horizontal = 16.dp), // Padding horizontal para centrar el botón
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.padding(40.dp))
-                CampoTexto(edad, { edad = it }, "Edad")
+                CampoTexto(edad, { edad = it }, "Edad", modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.padding(20.dp))
                 MenuDesplegable(
                     genero,
@@ -364,7 +370,7 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
                     textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
                 )
                 Spacer(modifier = Modifier.padding(20.dp))
-                CampoTexto(institucion, { institucion = it }, "Institución Educativa")
+                CampoTexto(institucion, { institucion = it }, "Institución Educativa", modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.padding(20.dp))
                 MenuDesplegable(
                     grado,
@@ -376,18 +382,30 @@ fun Estudiantes(viewModel: FormularioViewModel, navController: NavHostController
                     textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
                 )
                 Spacer(modifier = Modifier.padding(20.dp))
-                CampoTexto(municipio, { municipio = it }, "Municipio")
+                CampoTexto(municipio, { municipio = it }, "Municipio", modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.padding(20.dp))
                 val camposLlenos =
                     edad.isNotBlank() && institucion.isNotBlank() && municipio.isNotBlank() && genero.isNotBlank() &&grado.isNotBlank()
 
                 BotonSiguiente(isEnabled = camposLlenos) {
-                    viewModel.agregarDatosFormulario("edad" to edad)
-                    viewModel.agregarDatosFormulario("institucion" to institucion)
-                    viewModel.agregarDatosFormulario("municipio" to municipio)
-                    viewModel.agregarDatosFormulario("genero" to genero)
-                    viewModel.agregarDatosFormulario("grado" to grado)
-                    navController.navigate(PantallaFormulario.Estudiantes1.ruta)
+                    if (camposLlenos) {
+                        viewModel.agregarDatosFormulario("edad" to edad)
+                        viewModel.agregarDatosFormulario("institucion" to institucion)
+                        viewModel.agregarDatosFormulario("municipio" to municipio)
+                        viewModel.agregarDatosFormulario("genero" to genero)
+                        viewModel.agregarDatosFormulario("grado" to grado)
+                        navController.navigate(PantallaFormulario.Estudiantes1.ruta)
+                    }else {
+                        showSnackbar = true
+                    }
+                }
+                LaunchedEffect(key1 = showSnackbar) {
+                    if (showSnackbar) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Por favor, completa todos los campos.")
+                            showSnackbar = false
+                        }
+                    }
                 }
             }
 
@@ -425,6 +443,9 @@ fun Estudiantes1(viewModel: FormularioViewModel, navController: NavHostControlle
     var expandedAsignaturas by remember { mutableStateOf(false) } // Declaración de expandedGenero
     var expandedParticipacion by remember { mutableStateOf(false) } // Declaración de expandedGrado
     var rotationAngle by remember { mutableFloatStateOf(180f) }// Ángulo de rotación inicial
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var showSnackbar by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()){
@@ -482,15 +503,27 @@ fun Estudiantes1(viewModel: FormularioViewModel, navController: NavHostControlle
                     "En una escala del 1 al 7, siendo 1 el menor y 7 el máximo ¿Cuánto interés tienes en temas de ciencia y la tecnología?"
                 )
                 Spacer(modifier = Modifier.padding(20.dp))
-                val isButtonEnabled = impacto.isNotBlank() && promocion.isNotBlank() &&
+                val camposLlenos = impacto.isNotBlank() && promocion.isNotBlank() &&
                         asignaturas.isNotBlank() && participacion.isNotBlank() && interes.isNotBlank()
-                BotonSiguiente(isEnabled = isButtonEnabled) {
-                    viewModel.agregarDatosFormulario("impacto" to impacto)
-                    viewModel.agregarDatosFormulario("promocion" to promocion)
-                    viewModel.agregarDatosFormulario("asignaturas" to asignaturas)
-                    viewModel.agregarDatosFormulario("participacion" to participacion)
-                    viewModel.agregarDatosFormulario("interes" to interes)
-                    navController.navigate(PantallaFormulario.Estudiantes2.ruta) // Navega a la siguiente pantalla
+                BotonSiguiente(isEnabled = camposLlenos) {
+                    if (camposLlenos) {
+                        viewModel.agregarDatosFormulario("impacto" to impacto)
+                        viewModel.agregarDatosFormulario("promocion" to promocion)
+                        viewModel.agregarDatosFormulario("asignaturas" to asignaturas)
+                        viewModel.agregarDatosFormulario("participacion" to participacion)
+                        viewModel.agregarDatosFormulario("interes" to interes)
+                        navController.navigate(PantallaFormulario.Estudiantes2.ruta) // Navega a la siguiente pantalla
+                    }else {
+                        showSnackbar = true
+                    }
+                }
+                LaunchedEffect(key1 = showSnackbar) {
+                    if (showSnackbar) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Por favor, completa todos los campos.")
+                            showSnackbar = false
+                        }
+                    }
                 }
             }
             IconButton(
@@ -526,6 +559,9 @@ fun Estudiantes2(viewModel: FormularioViewModel, navController: NavHostControlle
     var expandedVideo3 by remember { mutableStateOf(false) }
     var expandedImVideo3 by remember { mutableStateOf(false) }
     var rotationAngle by remember { mutableFloatStateOf(180f) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var showSnackbar by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -578,16 +614,28 @@ fun Estudiantes2(viewModel: FormularioViewModel, navController: NavHostControlle
                 )
                 Spacer(modifier = Modifier.padding(5.dp))
 
-                val isButtonEnabled = habilidades.isNotBlank() && impacto.isNotBlank() &&
+                val camposLlenos = habilidades.isNotBlank() && impacto.isNotBlank() &&
                         conoceComunicacion.isNotBlank() && interesaCrearContenido.isNotBlank() && calidadInformacion.isNotBlank()
 
-                BotonSiguiente(isEnabled = isButtonEnabled) {
-                    viewModel.agregarDatosFormulario("habilidades" to habilidades)
-                    viewModel.agregarDatosFormulario("impacto" to impacto)
-                    viewModel.agregarDatosFormulario("conoceComunicacion" to conoceComunicacion)
-                    viewModel.agregarDatosFormulario("interesaCrearContenido" to interesaCrearContenido)
-                    viewModel.agregarDatosFormulario("calidadInformacion" to calidadInformacion)
-                    navController.navigate(PantallaFormulario.Estudiantes3.ruta)
+                BotonSiguiente(isEnabled = camposLlenos) {
+                    if (camposLlenos) {
+                        viewModel.agregarDatosFormulario("habilidades" to habilidades)
+                        viewModel.agregarDatosFormulario("impacto" to impacto)
+                        viewModel.agregarDatosFormulario("conoceComunicacion" to conoceComunicacion)
+                        viewModel.agregarDatosFormulario("interesaCrearContenido" to interesaCrearContenido)
+                        viewModel.agregarDatosFormulario("calidadInformacion" to calidadInformacion)
+                        navController.navigate(PantallaFormulario.Estudiantes3.ruta)
+                    }else{
+                        showSnackbar = true
+                    }
+                }
+                LaunchedEffect(key1 = showSnackbar) {
+                    if (showSnackbar) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Por favor, completa todos los campos.")
+                            showSnackbar = false
+                        }
+                    }
                 }
             }
 
@@ -626,6 +674,8 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var rotationAngle by remember {mutableFloatStateOf(180f) }
+    var showSnackbar by remember { mutableStateOf(false) }
+
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -683,21 +733,35 @@ fun Estudiantes3(viewModel: FormularioViewModel, navController: NavHostControlle
                         sigueCientificos.isNotBlank() && interesaCarrera.isNotBlank() && queEstudiar.isNotBlank()
 
                 BotonSiguiente(isEnabled = isButtonEnabled) {
-                    viewModel.agregarDatosFormulario("conocimientoDivulgacion" to conocimientoDivulgacion)
-                    viewModel.agregarDatosFormulario("mediosDigitales" to mediosDigitales)
-                    viewModel.agregarDatosFormulario("sigueCientificos" to sigueCientificos)
-                    viewModel.agregarDatosFormulario("interesaCarrera" to interesaCarrera)
-                    viewModel.agregarDatosFormulario("queEstudiar" to queEstudiar)
-                    viewModel.guardarFormularioEnFirebase("estudiante") { result ->
-                        success = result as? Boolean
-                        scope.launch {
-                            withContext(Dispatchers.Main){
-                                if (success == true) {
-                                    navController.navigate(PantallaFormulario.PantallaFinal.ruta)
-                                } else {
-                                    // Manejar error al guardar
+                    if (isButtonEnabled) {
+                        viewModel.agregarDatosFormulario("conocimientoDivulgacion" to conocimientoDivulgacion)
+                        viewModel.agregarDatosFormulario("mediosDigitales" to mediosDigitales)
+                        viewModel.agregarDatosFormulario("sigueCientificos" to sigueCientificos)
+                        viewModel.agregarDatosFormulario("interesaCarrera" to interesaCarrera)
+                        viewModel.agregarDatosFormulario("queEstudiar" to queEstudiar)
+                        viewModel.guardarFormularioEnFirebase("estudiante") { result ->
+                            success = result as? Boolean
+                            scope.launch {
+                                withContext(Dispatchers.Main) {
+                                    if (success == true) {
+                                        navController.navigate(PantallaFormulario.PantallaFinal.ruta)
+                                    } else {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Error al guardar los datos. Inténtalo de nuevo."
+                                        )
+                                    }
                                 }
                             }
+                        }
+                    }else{
+                        showSnackbar = true
+                    }
+                }
+                LaunchedEffect(key1 = showSnackbar) {
+                    if (showSnackbar) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Por favor, completa todos los campos.")
+                            showSnackbar = false
                         }
                     }
                 }
@@ -768,6 +832,7 @@ fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var rotationAngle by remember { mutableFloatStateOf(180f) }
+    var showSnackbar by remember { mutableStateOf(false) }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }){ innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -837,30 +902,42 @@ fun Docentes(viewModel: FormularioViewModel, navController: NavHostController) {
                         selectedOptionDesarrollo.isNotBlank()
                 Spacer(modifier = Modifier.padding(20.dp))
                 BotonSiguiente(isEnabled = isButtonEnabled) {
-                    viewModel.agregarDatosFormulario("colegio" to colegio)
-                    viewModel.agregarDatosFormulario("materia" to materia)
-                    viewModel.agregarDatosFormulario("municipio" to municipio)
-                    viewModel.agregarDatosFormulario("interesCTeI" to selectedOptionConsidera)
-                    viewModel.agregarDatosFormulario("desarrollosCTeI" to selectedOptionConsidera1)
-                    viewModel.agregarDatosFormulario("programaAcademico" to selectedOptionVocaciones)
-                    viewModel.agregarDatosFormulario("cursosHerramientas" to selectedOptionFormacion)
-                    viewModel.agregarDatosFormulario("areasDesarrollo" to selectedOptionDesarrollo)
-                    viewModel.guardarFormularioEnFirebase("docente") { result ->
-                        success =result as? Boolean
-                        scope.launch {
-                            withContext(Dispatchers.Main){
-                                if (success == true) {
-                                    navController.navigate(PantallaFormulario.PantallaFinal.ruta) // Navega a PantallaFinal
-                                }else {
-                                    // Manejar error al guardar
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = "Error al guardar los datos. Inténtalo de nuevo."
-                                        )
+                    if (isButtonEnabled) {
+                        viewModel.agregarDatosFormulario("colegio" to colegio)
+                        viewModel.agregarDatosFormulario("materia" to materia)
+                        viewModel.agregarDatosFormulario("municipio" to municipio)
+                        viewModel.agregarDatosFormulario("interesCTeI" to selectedOptionConsidera)
+                        viewModel.agregarDatosFormulario("desarrollosCTeI" to selectedOptionConsidera1)
+                        viewModel.agregarDatosFormulario("programaAcademico" to selectedOptionVocaciones)
+                        viewModel.agregarDatosFormulario("cursosHerramientas" to selectedOptionFormacion)
+                        viewModel.agregarDatosFormulario("areasDesarrollo" to selectedOptionDesarrollo)
+                        viewModel.guardarFormularioEnFirebase("docente") { result ->
+                            success = result as? Boolean
+                            scope.launch {
+                                withContext(Dispatchers.Main) {
+                                    if (success == true) {
+                                        navController.navigate(PantallaFormulario.PantallaFinal.ruta) // Navega a PantallaFinal
+                                    } else {
+                                        // Manejar error al guardar
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                message = "Error al guardar los datos. Inténtalo de nuevo."
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
+                            }
+                        }
+                    }else {
+                        showSnackbar = true
+                    }
+                }
+                LaunchedEffect(key1 = showSnackbar) {
+                    if (showSnackbar) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Por favor, completa todos los campos.")
+                            showSnackbar = false
                         }
                     }
                 }
@@ -914,13 +991,13 @@ fun CampoTexto(
         label = { Text(etiqueta) },
         modifier = modifier,
         textStyle = TextStyle(
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.surface,
             fontSize= 18.sp
         ),
         shape = RoundedCornerShape(4.dp), // Agrega bordes redondeados
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surface, // Color de fondo del TextField
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedContainerColor = MaterialTheme.colorScheme.outlineVariant, // Color de fondo del TextField
+            unfocusedContainerColor = MaterialTheme.colorScheme.outlineVariant,
             disabledContainerColor = MaterialTheme.colorScheme.surface,
             focusedIndicatorColor = Color.Transparent, // Oculta el indicador cuando está enfocado
             unfocusedIndicatorColor = Color.Transparent, // Oculta el indicador cuando no está enfocado
@@ -937,7 +1014,7 @@ fun MenuDesplegable(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
         //.size(width = Dp.Unspecified, height = 60.dp),
-    textStyle: TextStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface)
+    textStyle: TextStyle = TextStyle(color = MaterialTheme.colorScheme.surface)
 ) {
     Column(
         modifier = modifier,
@@ -961,8 +1038,8 @@ fun MenuDesplegable(
             textStyle = textStyle.copy(fontSize = 18.sp),
             shape = RoundedCornerShape(4.dp), // Agrega bordes redondeados
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface, // Usa containerColor en lugar de backgroundColor
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.outlineVariant, // Usa containerColor en lugar de backgroundColor
+                unfocusedContainerColor = MaterialTheme.colorScheme.outlineVariant,
                 disabledContainerColor = MaterialTheme.colorScheme.surface,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
@@ -995,10 +1072,10 @@ fun BotonSiguiente(isEnabled: Boolean = true, onClick:  () -> Unit) {
             .fillMaxWidth()
             .height(50.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f), // Color del contenedor deshabilitado
-            disabledContentColor = MaterialTheme.colorScheme.surface.copy(alpha = ContentAlpha.disabled) // Color del contenido deshabilitado
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceTint.copy(alpha = 0.12f), // Color del contenedor deshabilitado
+            disabledContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.disabled) // Color del contenido deshabilitado
         ),
     ) {
         Text(

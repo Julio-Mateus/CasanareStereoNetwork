@@ -17,6 +17,7 @@ class MyLocationManager(private val context: Context) {
         LocationServices.getFusedLocationProviderClient(context)
 
     suspend fun getLastKnownLocation(): Location? = suspendCancellableCoroutine { continuation ->
+        // Simplificar la verificación de permisos
         if (ActivityCompat.checkSelfPermission(
                 context,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -25,23 +26,27 @@ class MyLocationManager(private val context: Context) {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // Los permisos no están concedidos, no se puede obtener la ubicación
             Log.e("LocationManager", "No se tienen permisos de ubicación")
             continuation.resume(null)
             return@suspendCancellableCoroutine
         }
 
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                continuation.resume(location)
-            }
-            .addOnFailureListener { e ->
-                Log.e("LocationManager", "Error al obtener la ubicación", e)
-                continuation.resume(null)
-            }
-            .addOnCanceledListener {
-                Log.w("LocationManager", "Operación de ubicación cancelada")
-                continuation.resume(null)
-            }
+        try {
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location: Location? ->
+                    continuation.resume(location)
+                }
+                .addOnFailureListener { e ->
+                    Log.e("LocationManager", "Error al obtener la ubicación: ${e.message}", e)
+                    continuation.resume(null)
+                }
+                .addOnCanceledListener {
+                    Log.w("LocationManager", "Operación de ubicación cancelada")
+                    continuation.resume(null)
+                }
+        } catch (e: SecurityException) {
+            Log.e("LocationManager", "Error de seguridad al obtener la ubicación: ${e.message}", e)
+            continuation.resume(null)
+        }
     }
 }

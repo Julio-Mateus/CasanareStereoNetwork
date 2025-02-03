@@ -31,9 +31,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,17 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
-import com.google.firebase.Firebase
-import com.google.firebase.appcheck.BuildConfig
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.initialize
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
@@ -70,6 +61,8 @@ import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.MyLocationManager
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioRepository
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
 
@@ -79,15 +72,14 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Configurar Firebase App Check
-        configureFirebaseAppCheck()
         val navController = (application as HomeApplication).navController
         myLocationManager = MyLocationManager(this)
 
         setContent {
-            CasanareStereoTheme {
-                navController.setViewModelStore(ViewModelStore())
-                MainScreen(navController)
+            CasanareStereoTheme { // Aquí envolvemos el contenido con nuestro tema
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    MainScreen(navController)
+                }
             }
         }
         lifecycleScope.launch {
@@ -98,7 +90,6 @@ class MainActivity : ComponentActivity() {
                     (application as HomeApplication).emisoraViewModel.getEmisorasCercanas(location)
                 } else {
                     Log.e("MainActivity", "No se pudo obtener la ubicación")
-                    // Puedes mostrar un mensaje al usuario o usar una ubicación por defecto
                 }
             }
         }
@@ -113,7 +104,6 @@ class MainActivity : ComponentActivity() {
                 android.Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // Los permisos no están concedidos, solicitarlos
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(
@@ -126,19 +116,6 @@ class MainActivity : ComponentActivity() {
         }
         return true
     }
-    private fun configureFirebaseAppCheck() {
-        Firebase.initialize(this)
-        val firebaseAppCheck = FirebaseAppCheck.getInstance()
-        if (BuildConfig.DEBUG) {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance() // Usar directamente DebugAppCheckProviderFactory.getInstance()
-            )
-        } else {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            )
-        }
-    }
 }
 
 @SuppressLint("ViewModelConstructorInComposable")
@@ -146,27 +123,29 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(navController: NavHostController) {
     val application = LocalContext.current.applicationContext as HomeApplication
-    val authService = AuthService(application.firebaseAuth, application.dataStoreManager) // Acceder a firebaseAuth desde HomeApplication
+    val authService = AuthService(application.firebaseAuth, application.db, application.dataStoreManager)
     val loginViewModel = createLoginViewModel(application)
     val emisoraViewModel = application.emisoraViewModel
     val podcastViewModel = application.podcastViewModel
     val usuarioViewModel = application.usuarioViewModel
-    val usuarioPerfilViewModel = application.usuarioPerfilViewModel
+    val emisoraRepository = application.emisoraRepository
+    // Create UsuarioPerfilViewModel here
+    val usuarioRepository = UsuarioRepository(application.db)
+    val usuarioPerfilViewModel = UsuarioPerfilViewModel(usuarioRepository, authService, application.db, application.storage)
 
-    CasanareStereoTheme {
-        NavigationHost(
-            navController,
-            PaddingValues(),
-            loginViewModel,
-            formularioViewModel = FormularioViewModel(),
-            authService,
-            emisoraViewModel,
-            podcastViewModel,
-            usuarioViewModel,
-            dataStoreManager = application.dataStoreManager,
-            usuarioPerfilViewModel
-        )
-    }
+    NavigationHost(
+        navController,
+        PaddingValues(),
+        loginViewModel,
+        formularioViewModel = FormularioViewModel(),
+        authService,
+        emisoraViewModel,
+        podcastViewModel,
+        usuarioViewModel,
+        dataStoreManager = application.dataStoreManager,
+        usuarioPerfilViewModel,
+        emisoraRepository
+    )
 }
 
 @Composable
@@ -236,11 +215,11 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     val currentUser = loginViewModel.authState.value
                     if (currentUser is EstadoAutenticacion.LoggedIn) {
                         // Accede a la información del usuario (correo o nombre)
-                        val userEmail = currentUser.user?.email ?: ""
+
 
                         // Actualiza el estado para mostrar el Snackbar
                         showAnimation = true
-                        animationMessage = "Bienvenido, $userEmail"
+                        animationMessage = "Bienvenido"
                     }
                 },
                 modifier = Modifier
@@ -249,14 +228,14 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     .height(56.dp),
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
             {
                 Text(
                     "Iniciar Sesión",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
             // Mostrar la animación si showAnimation es true
@@ -284,7 +263,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
             ) {
                 Text(
                     "En otro momento",
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
             }

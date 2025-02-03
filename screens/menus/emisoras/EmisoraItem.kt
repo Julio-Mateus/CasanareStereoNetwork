@@ -27,7 +27,7 @@ fun EmisoraItem(emisora: PerfilEmisora, navController: NavController, onEmisoraC
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { onEmisoraClick(emisora) }
+            .clickable { onEmisoraClick(emisora) } // Ahora pasamos el objeto PerfilEmisora completo
     ) {
         Row(
             modifier = Modifier
@@ -37,8 +37,8 @@ fun EmisoraItem(emisora: PerfilEmisora, navController: NavController, onEmisoraC
         ) {
             // Imagen de la emisora
             AsyncImage(
-                model = emisora.imagenPerfilUri,
-                contentDescription = "Imagen de perfil de ${emisora.nombre}",
+                model = emisora.imagenPerfilUri, // Accedemos a la propiedad imagenPerfilUri del objeto emisora
+                contentDescription = "Imagen de perfil de ${emisora.nombre}", // Accedemos a la propiedad nombre del objeto emisora
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape),
@@ -46,7 +46,7 @@ fun EmisoraItem(emisora: PerfilEmisora, navController: NavController, onEmisoraC
             )
             Spacer(modifier = Modifier.width(16.dp))
             // Nombre de la emisora
-            Text(text = emisora.nombre, style = MaterialTheme.typography.titleMedium)
+            Text(text = emisora.nombre, style = MaterialTheme.typography.titleMedium) // Accedemos a la propiedad nombre del objeto emisora
         }
     }
 }

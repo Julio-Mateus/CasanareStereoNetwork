@@ -31,6 +31,18 @@ sealed class Destinos(
     data object HomeCasanareVista : Destinos( icon = null, title = "HomeCasanareVista", ruta = "HomeCasanareVista")
     data object CasanareLoginScreen : Destinos( icon = null, title = "Login", ruta = "CasanareLoginScreen")
 
+    /*
+    //Formulario Docentes o Estudiantes
+    data object SeleccionRolScreen : Destinos( icon = null, title = "SeleccionRol", ruta = "SeleccionRolScreen")
+    data object Estudiantes : Destinos( icon = null, title = "Estudiantes", ruta = "Estudiantes")
+    data object Estudiantes1 : Destinos( icon = null, title = "Estudiantes1", ruta = "Estudiantes1")
+    data object Estudiantes2 : Destinos( icon = null, title = "Estudiantes2", ruta = "Estudiantes2")
+    data object Estudiantes3 : Destinos( icon = null, title = "Estudiantes3", ruta = "Estudiantes3")
+    data object Docentes : Destinos( icon = null, title = "Docentes", ruta = "Docentes")
+    data object PantallaFinalScreen : Destinos( icon = null, title = "PantallaFinalScreen", ruta = "PantallaFinalScreen")
+     */
+
+
     //Emisora
     data object EmisoraVista : Destinos( icon = null, title = "Emisora", ruta = "EmisoraVista")
     data object FormularioPerfilEmisora : Destinos( icon = null, title = "FormularioEmisora", ruta = "FormularioPerfilEmisora")

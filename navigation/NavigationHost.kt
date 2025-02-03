@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -77,6 +78,7 @@ import com.jcmateus.casanarestereo.screens.usuarios.emisoras.FormularioPerfilEmi
 import com.google.gson.Gson
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
 import com.jcmateus.casanarestereo.screens.menus.emisoras.EmisorasScreen
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.FormularioNoticia
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.VistaNoticia
@@ -104,7 +106,8 @@ fun NavigationHost(
     podcastViewModel: PodcastViewModel,
     usuarioViewModel: UsuarioViewModel,
     dataStoreManager: DataStoreManager,
-    usuarioPerfilViewModel: UsuarioPerfilViewModel
+    usuarioPerfilViewModel: UsuarioPerfilViewModel,
+    emisoraRepository: EmisoraRepository
 ) {
     Log.d("NavController", "NavigationHost: $navController")
     val authState = loginViewModel.authState.collectAsStateWithLifecycle()
@@ -208,7 +211,13 @@ fun NavigationHost(
     ) {
         // Inicio
         composable(Destinos.SplashScreen.ruta) {
-            SplashScreen(navController = navController, authService = authService, loginViewModel = loginViewModel, dataStoreManager = dataStoreManager)
+            SplashScreen(
+                navController = navController,
+                authService = authService,
+                loginViewModel = loginViewModel,
+                dataStoreManager = dataStoreManager,
+                emisoraRepository = emisoraRepository // Corregido: Usa la instancia recibida
+            )
         }
         composable(Destinos.PantallaPresentacion.ruta) {
             PantallaPresentacion(navController = navController, loginViewModel = loginViewModel)
@@ -320,7 +329,8 @@ fun NavigationHost(
         composable(Destinos.FormularioPerfilEmisora.ruta) { backStackEntry ->
             ScaffoldContent { innerPadding ->
                 FormularioPerfilEmisora(
-                    navController
+                    navController = navController,
+                    authService = authService
                 )
             }
         }
@@ -399,13 +409,20 @@ fun NavigationHost(
         }
         //composable(Destinos.FormularioBanner.ruta) { ScaffoldContent { innerPadding -> FormularioBanner(innerPadding, navController) } }
 
-        composable(Destinos.UsuarioPerfilScreen.ruta) {
-            val usuarioRepository = UsuarioRepository()
-            val usuarioPerfilViewModel: UsuarioPerfilViewModel = viewModel(
-                factory = UsuarioPerfilViewModelFactory(usuarioRepository, authService)
-            )
+        composable(
+            route = Destinos.UsuarioPerfilScreen.ruta,
+        ) {
+            val owner = LocalViewModelStoreOwner.current
+            val context = LocalContext.current.applicationContext as HomeApplication
+            val usuarioRepository = UsuarioRepository(context.db)
+            val usuarioPerfilViewModel: UsuarioPerfilViewModel = if (owner != null) {
+                viewModel(owner, factory = UsuarioPerfilViewModelFactory(usuarioRepository, authService, context.db, context.storage))
+            } else {
+                throw IllegalStateException("No ViewModelStoreOwner was provided")
+            }
+            val uid = authService.getCurrentUser()?.uid ?: "" // Obtener el UID del usuario actual
             ScaffoldContent { innerPadding ->
-                UsuarioPerfilScreen(usuarioPerfilViewModel, navController)
+                UsuarioPerfilScreen(usuarioPerfilViewModel, navController, uid)
             }
         }
 

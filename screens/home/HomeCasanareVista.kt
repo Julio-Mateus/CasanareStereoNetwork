@@ -37,6 +37,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -64,6 +65,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -129,6 +131,7 @@ import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilScreen
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
@@ -138,7 +141,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
     val dataStoreManager = application.dataStoreManager
-    val authService = AuthService(application.firebaseAuth, dataStoreManager) // Crear instancia de AuthService
+    val authService = AuthService(application.firebaseAuth, application.db, application.dataStoreManager) // Crear instancia de AuthService
     return viewModel(
         factory = LoginScreenViewModelFactory(
             dataStoreManager,
@@ -184,112 +187,91 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, e
         //Destinos.Pantalla14, // Preferencias
     )
     val currentRoute = currentRoute(navController) ?: ""
-    /*val shouldShowScaffold = currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-     */
-    val rolUsuario = dataStoreManager.getRolUsuario().collectAsState(initial = Rol.USUARIO).value
-    when (rolUsuario) {
-        Rol.USUARIO -> {
-            UsuarioPerfilScreen(
-                navController = navController,
-                viewModel = usuarioPerfilViewModel // Ahora tienes acceso a usuarioPerfilViewModel
-            )
-        }
-
-        Rol.EMISORA -> {
-            EmisoraVista(
-                navController,
-                emisoraViewModel
-            )
-        }
-        Rol.NO_DEFINIDO -> {
-            CasanareLoginScreen(navController = navController, emisoraViewModel = emisoraViewModel)
+    var destination by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+/*
+    suspend fun determineNavigationDestination(role: Rol?) {
+        destination = when (role) {
+            Rol.ADMINISTRADOR -> Destinos.CasanareLoginScreen.ruta
+            Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
+            Rol.EMISORA -> Destinos.EmisoraVista.ruta
+            null -> Destinos.CasanareLoginScreen.ruta
         }
     }
 
 
-    var authState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
-
-    LaunchedEffect(key1 = authState) {
-        when (authState) {
-            is EstadoAutenticacion.LoggedIn -> {
-                navController.navigate(Destinos.HomeCasanareVista.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            EstadoAutenticacion.LoggedOut -> {
-                navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            else -> {}
+    LaunchedEffect(key1 = Unit) {
+        val rolUsuario = dataStoreManager.getRol().first()
+        determineNavigationDestination(rolUsuario)
+        isLoading = false
+    }
+ */
+    LaunchedEffect(destination) {
+        if (destination != null) {
+            navController.navigate(destination!!)
         }
     }
 
-
-    if (showScaffold) {
-        Scaffold(
-            scaffoldState = scaffoldState,
-            bottomBar = {
-                if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(
-                        navController,
-                        bottomNavDestinations,
-                        expanded,
-                        { expanded = it },
-                        innerPadding = PaddingValues(0.dp),
-                        dataStoreManager = dataStoreManager,
-                        authService = authService
-                    )
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }else {
+        if (showScaffold) {
+            Scaffold(
+                scaffoldState = scaffoldState,
+                bottomBar = {
+                    if (shouldShowBottomBar(currentRoute)) {
+                        NavegacionInferior(
+                            navController,
+                            bottomNavDestinations,
+                            expanded,
+                            { expanded = it },
+                            innerPadding = PaddingValues(0.dp),
+                            dataStoreManager = dataStoreManager,
+                            authService = authService
+                        )
+                    }
+                },
+                topBar = {
+                    if (shouldShowTopBar(currentRoute)) {
+                        TopBar(scope, scaffoldState, navController, allDestinations, viewModel)
+                    }
+                },
+                drawerContent = {
+                    if (shouldShowDrawer(currentRoute)) {
+                        Drawer(
+                            scope,
+                            scaffoldState,
+                            navController,
+                            items = allDestinations
+                        )
+                    }
                 }
-            },
-            topBar = {
-                if (shouldShowTopBar(currentRoute)) {
-                    TopBar(scope, scaffoldState, navController, allDestinations, viewModel)
+            ) { innerPadding ->
+                when (currentRoute) {
+                    Destinos.Pantalla1.ruta -> Inicio(innerPadding)
+                    Destinos.Pantalla2.ruta -> EmisorasScreen(innerPadding, navController)
+                    Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding, navController)
+                    Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
+                    Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
+                    Destinos.Pantalla6.ruta -> Programacion(innerPadding)
+                    Destinos.Pantalla7.ruta -> Programas(innerPadding)
+                    Destinos.Pantalla8.ruta -> Podcast(innerPadding)
+                    Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
+                    Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
+                    Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
+                    Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
+                    Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
+                    Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
+                    Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
+                    Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
+                    else -> {} // Manejar otras rutas o mostrar un mensaje de error
                 }
-            },
-            drawerContent = {
-                if (shouldShowDrawer(currentRoute)) {
-                    Drawer(
-                        scope,
-                        scaffoldState,
-                        navController,
-                        items = allDestinations
-                    )
-                }
-            }
-        ) { innerPadding ->
-            when (currentRoute) {
-                Destinos.Pantalla1.ruta -> Inicio(innerPadding)
-                Destinos.Pantalla2.ruta -> EmisorasScreen(innerPadding, navController)
-                Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding, navController)
-                Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
-                Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
-                Destinos.Pantalla6.ruta -> Programacion(innerPadding)
-                Destinos.Pantalla7.ruta -> Programas(innerPadding)
-                Destinos.Pantalla8.ruta -> Podcast(innerPadding)
-                Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
-                Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
-                Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
-                Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
-                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
-                //Destinos.Pantalla14.ruta -> Preferencias(innerPadding, navController)
-                Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
-                Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
-                Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
-                else -> {} // Manejar otras rutas o mostrar un mensaje de error
             }
         }
     }
+
 }
 
 fun shouldShowBottomBar(currentRoute: String): Boolean {
@@ -334,7 +316,7 @@ fun NavegacionInferior(
     authService: AuthService // Agregar authService como parámetro
 ) {
     // Obtener el rol del usuario usando collectAsState
-    val rol by dataStoreManager.getRolUsuario().collectAsState(initial = Rol.NO_DEFINIDO) // Correcto: Usar getRolUsuario() y eliminar initial
+    val rol by dataStoreManager.getRol().collectAsState(initial = Rol.USUARIO) // Correcto: Usar getRolUsuario() y eliminar initial
     var cerrarSesion by remember { mutableStateOf(false) }
     NavigationBar(
         modifier = Modifier.fillMaxWidth(),
@@ -393,11 +375,14 @@ fun NavegacionInferior(
                     )
                 },
                 onClick = {
+
                     val rutaPerfil = when (rol) {
+
                         Rol.EMISORA -> Destinos.EmisoraVista.ruta
                         Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
                         else -> Destinos.Pantalla1.ruta // O una ruta por defecto
                     }
+                    Log.d("NavegacionInferior", "Rol: $rol, Ruta Perfil: $rutaPerfil")
                     navController.navigate(rutaPerfil)
                     onExpandedChange(false) // Cerrar el menú después de la navegación
                 }
@@ -568,8 +553,8 @@ fun DrawerItem(
             .padding(6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (selected) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.surface
+                if (selected) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.onSurface
             )
             .padding(8.dp)
             .clickable { onItemClick(item) },
@@ -579,7 +564,7 @@ fun DrawerItem(
         ) {
         if (item.icon != null) {
             val iconColor =
-                if (selected) MaterialTheme.colorScheme.primary else if (isSystemInDarkTheme()) Color.White else Color.Black
+                if (selected) MaterialTheme.colorScheme.primary else if (isSystemInDarkTheme()) Color.Black else Color.White
             Image(
                 painter = painterResource(id = item.icon),
                 contentDescription = item.title,

@@ -4,6 +4,7 @@ package com.jcmateus.casanarestereo
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.result.launch
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -63,6 +64,9 @@ import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
 import com.jcmateus.casanarestereo.screens.login.Rol
+import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
@@ -71,88 +75,122 @@ import kotlinx.coroutines.flow.first
 fun SplashScreen(
     navController: NavHostController,
     authService: AuthService,
-    loginViewModel: LoginScreenViewModel, // Recibir LoginScreenViewModel como parámetro
-    dataStoreManager: DataStoreManager // Recibir dataStoreManager como parámetro
+    loginViewModel: LoginScreenViewModel,
+    dataStoreManager: DataStoreManager,
+    emisoraRepository: EmisoraRepository
 ) {
     val context = LocalContext.current
-    val authState = authService.authState.collectAsStateWithLifecycle()
+    val authState by authService.authState.collectAsStateWithLifecycle()
     var isFirstTime by remember { mutableStateOf(true) }
     var hasShownPresentation by remember { mutableStateOf(false) }
-    var userRole by remember { mutableStateOf(Rol.NO_DEFINIDO) }
+    var destination by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isCreatingAccount by remember { mutableStateOf(false) }
+    var hasCompletedForm by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = Unit) {
-        isFirstTime = dataStoreManager.isFirstTimeAppOpen().first()
-        hasShownPresentation = dataStoreManager.getHasShownPresentation().first()
-        userRole = dataStoreManager.getRolUsuario().first()
-    }
-    var currentAuthState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
-    LaunchedEffect(authState.value, isFirstTime, hasShownPresentation, userRole) {
-        Log.d("SplashScreen", "Estado de autenticación: ${authState.value}")
-        currentAuthState = authState.value
-        if (isFirstTime || !hasShownPresentation) {
-            dataStoreManager.saveAppOpened() // Correcto: Llamar a la función suspend directamente
-            navController.navigate(Destinos.PantallaPresentacion.ruta)
-        } else {
-            when (val state = authState.value) {
-                is EstadoAutenticacion.LoggedIn -> {
-                    Log.d("SplashScreen", "Rol de usuario recuperado: $userRole")
-                    when (userRole) {
-                        Rol.USUARIO -> {
-                            navController.navigate(Destinos.UsuarioPerfilScreen.ruta) // Navegar al perfil de usuario
-                        }
+    isFirstTime = dataStoreManager.isFirstTimeAppOpen().first()
+    hasShownPresentation = dataStoreManager.getHasShownPresentation().first()
+    hasCompletedForm = dataStoreManager.getHasCompletedForm().first()
+    authService.checkSession()
+}
 
-                        Rol.EMISORA -> {
-                            navController.navigate(Destinos.FormularioPerfilEmisora.ruta) // Navegar al perfil de emisora
-                        }
+    suspend fun determineNavigationDestination(role: Rol?) {
+        Log.d(
+            "SplashScreen",
+            "isFirstTime: $isFirstTime, hasShownPresentation: $hasShownPresentation, role: $role, hasCompletedForm: $hasCompletedForm"
+        )
+        destination = when {
+            isFirstTime -> {
+                Destinos.PantallaPresentacion.ruta
+            }
+            role == Rol.USUARIO && !hasCompletedForm -> {
+                PantallaFormulario.SeleccionRol.ruta
+            }
 
-                        Rol.NO_DEFINIDO -> {
-                            navController.navigate(Destinos.CasanareLoginScreen.ruta) // Navegar al login
+            role == Rol.ADMINISTRADOR -> Destinos.Pantalla1.ruta
+            role == Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta // Navega directo al perfil
+            role == Rol.EMISORA -> {
+                val userId = authService.getCurrentUser()?.uid
+                if (userId != null) {
+                    try {
+                        val perfil = emisoraRepository.cargarPerfilEmisora(userId)
+                        if (perfil != null) {
+                            Destinos.EmisoraVista.ruta
+                        } else {
+                            Destinos.FormularioPerfilEmisora.ruta
                         }
+                    } catch (e: Exception) {
+                        Log.e("SplashScreen", "Error al cargar el perfil de la emisora", e)
+                        Destinos.CasanareLoginScreen.ruta
                     }
-                }
-
-                is EstadoAutenticacion.LoggedInWithPendingRol -> {
-                    // Aquí puedes mostrar un indicador de carga o esperar a que el rol se cargue
-                    Log.d("SplashScreen", "Usuario logueado, esperando rol...")
-                }
-
-                EstadoAutenticacion.LoggedOut -> {
-                    navController.navigate(Destinos.CasanareLoginScreen.ruta)
-                }
-
-                EstadoAutenticacion.Loading -> {
-                    // No hacemos nada aquí, el when de abajo se encarga de mostrar el indicador
-                }
-
-                is EstadoAutenticacion.Error -> {
-                    Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                } else {
+                    Log.e("SplashScreen", "No se pudo obtener el userId")
+                    Destinos.CasanareLoginScreen.ruta
                 }
             }
-        }
-    }
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (currentAuthState is EstadoAutenticacion.Loading || currentAuthState is EstadoAutenticacion.LoggedInWithPendingRol) {
-            CircularProgressIndicator()
-        }
-    }
-    when (val state = currentAuthState) {
-        EstadoAutenticacion.Loading -> {
-            Splash()
-        }
 
-        else -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+            else -> Destinos.CasanareLoginScreen.ruta
+        }
+        Log.d("SplashScreen", "Destination: $destination")
+    }
+
+    LaunchedEffect(authState, isFirstTime, hasShownPresentation, hasCompletedForm) {
+        val currentAuthState = authState
+        Log.d("SplashScreen", "Estado de autenticación: $currentAuthState")
+        when (currentAuthState) {
+            is EstadoAutenticacion.LoggedIn -> {
+                determineNavigationDestination(currentAuthState.rol)
             }
 
+            is EstadoAutenticacion.LoggedInWithPendingRol -> {
+                val rolFromDataStore = dataStoreManager.getRol().first()
+                determineNavigationDestination(rolFromDataStore)
+            }
+
+            is EstadoAutenticacion.LoggedOut -> {
+                destination = Destinos.CasanareLoginScreen.ruta
+            }
+
+            is EstadoAutenticacion.Loading -> {
+                // No hacemos nada aquí, el when de abajo se encarga de mostrar el indicador
+            }
+
+            is EstadoAutenticacion.Error -> {
+                Toast.makeText(context, currentAuthState.message, Toast.LENGTH_LONG).show()
+                destination = Destinos.CasanareLoginScreen.ruta
+            }
+
+            else -> {
+                Log.e("SplashScreen", "Estado de autenticación desconocido")
+                destination = Destinos.CasanareLoginScreen.ruta
+            }
         }
+        if (isFirstTime || !hasShownPresentation) {
+            dataStoreManager.saveAppOpened()
+        }
+        if (destination != null) {
+            if (destination == Destinos.PantallaPresentacion.ruta) {
+                navController.navigate(destination!!) {
+                    popUpTo(Destinos.SplashScreen.ruta) { inclusive = true }
+                }
+                delay(3000)
+                dataStoreManager.savePresentationShown()
+                val rol = dataStoreManager.getRol().first()
+                determineNavigationDestination(rol)
+            } else {
+                navController.navigate(destination!!) {
+                    popUpTo(Destinos.SplashScreen.ruta) { inclusive = true }
+                }
+            }
+            isLoading = false
+        }
+    }
+    if (isLoading) {
+        Splash()
     }
 }
+
 @Composable
 fun Splash() {
     var visible by remember { mutableStateOf(false) }
@@ -187,7 +225,8 @@ fun Splash() {
                     contentDescription = "Splash Image",
                     modifier = Modifier
                         .size(150.dp)
-                        .alpha(alpha)
+                        .alpha(alpha),
+                    contentScale = ContentScale.Fit
                 )
             }
         }
