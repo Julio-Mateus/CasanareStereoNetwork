@@ -76,7 +76,7 @@ class HomeApplication : Application() {
     }
     val emisoraViewModelFactory: EmisoraViewModelFactory by lazy {
         Log.d("HomeApplication", "emisoraViewModelFactory: Creando instancia de EmisoraViewModelFactory")
-        EmisoraViewModelFactory(emisoraRepository, firebaseAuth)
+        EmisoraViewModelFactory(emisoraRepository, firebaseAuth, db)
     }
     // Add this line to create the factory
     val programaRepository: ProgramaRepository by lazy {
@@ -95,7 +95,7 @@ class HomeApplication : Application() {
     }
     val noticiaViewModelFactory: NoticiaViewModelFactory by lazy {
         Log.d("HomeApplication", "noticiaViewModelFactory: Creando instancia de NoticiaViewModelFactory")
-        NoticiaViewModelFactory(noticiaRepository, firebaseAuth, db)
+        NoticiaViewModelFactory(noticiaRepository, firebaseAuth, db, storage, authService)
     }
 
     val emisoraViewModel: EmisoraViewModel by lazy {

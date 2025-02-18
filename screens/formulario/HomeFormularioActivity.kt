@@ -217,13 +217,13 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyLarge,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                        color = MaterialTheme.colorScheme.surfaceBright // Cambia el color del texto para que se vea sobre la imagen
                     )
                     Text(
                         text = "DONDE LATE EL CORAZÓN DEL LLANO",
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                        color = MaterialTheme.colorScheme.surfaceBright // Cambia el color del texto para que se vea sobre la imagen
                     )
                 }
             }
@@ -237,7 +237,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                     text = "Seleciona Rol",
                     modifier = Modifier,
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.surfaceBright
                 )
                 Button(
                     onClick = { navController.navigate(PantallaFormulario.Docentes.ruta) },
@@ -265,7 +265,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.scrim
                     )
                 }
                 Button(
@@ -294,7 +294,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.scrim
                     )
                 }
                 Button(
@@ -325,7 +325,7 @@ fun SeleccionRolScreen(navController: NavHostController) {
                         style = MaterialTheme.typography.bodyMedium,
                         fontSize = 24.sp,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.scrim
                     )
                 }
             }

@@ -61,10 +61,11 @@ fun Inicio(innerPadding: PaddingValues) {
         )
         )
         Spacer(modifier = Modifier.height(16.dp))
-
+        /*
         Button(onClick = { /* Acción del botón */ }) {
             Text("Yopal")
         }
+         */
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Emisoras Locales", fontWeight = FontWeight.Bold)

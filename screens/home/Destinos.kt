@@ -19,7 +19,12 @@ sealed class Destinos(
     data object Pantalla9 : Destinos(R.drawable.contactenos_100, "Contactenos", "pantalla9")
     data object Pantalla10 : Destinos(R.drawable.clasificados_100, "Clasificados", "pantalla10")
     data object Pantalla11 : Destinos(R.drawable.youtube_casanare_100, "Casanare Stereo", "pantalla11")
+    //Configuraciones
     data object Pantalla12 : Destinos(R.drawable.ajustes1_100, "Configuración", "pantalla12")
+    data object AcercaDe : Destinos(null, "Acerca de", "acerca_de")
+    data object Notificaciones : Destinos(null, "Notificaciones", "notificaciones")
+    data object Privacidad : Destinos(null, "Privacidad", "privacidad")
+    data object Tema: Destinos(icon = null, title = "Tema", ruta = "Tema")
     data object Pantalla13 : Destinos(R.drawable.salida1_100, "Cerrar Sesión", "pantalla13")
     //data object Pantalla14 : Destinos(R.drawable.preferencias_50, "Preferencias", "pantalla14")
     //Acciones
@@ -49,13 +54,13 @@ sealed class Destinos(
     data object EmisoraDetalles : Destinos(icon = null, title = "EmisoraDetalles", ruta = "EmisoraDetalles")
 
     //Noticias
-    data object VistaNoticia : Destinos( icon = null, title = "Noticias", ruta = "VistaNoticia")
+    data class VistaNoticia(val noticiaJson: String? = null) : Destinos(icon = null, title = "VistaNoticia", ruta = "VistaNoticia")
     data object FormularioNoticia : Destinos( icon = null, title = "FormularioNoticia", ruta = "FormularioNoticia")
     data object NoticiasScreen : Destinos(icon = null, title = "NoticiasScreen", ruta = "NoticiasScreen")
     data object VistaNoticiaUsuario : Destinos(icon = null, title = "VistaNoticiaUsuario", ruta = "VistaNoticiaUsuario")
 
     //Podcast
-    data object VistaPodcast : Destinos( icon = null, title = "Podcast", ruta = "PodcastVista")
+    data class VistaPodcast(val podcastJson: String? = null) : Destinos(icon = null, title = "Podcast", ruta = "PodcastVista")
     data object FormularioPodcast : Destinos( icon = null, title = "FormularioPodcast", ruta = "FormularioPodcast")
     data object ListaPodcast : Destinos(icon = null, title = "ListaPodcast", ruta = "ListaPodcast")
 

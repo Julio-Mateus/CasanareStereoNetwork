@@ -28,10 +28,7 @@ package com.jcmateus.casanarestereo.screens.home
 //noinspection UsingMaterialAndMaterial3Libraries
 import android.annotation.SuppressLint
 import android.os.Build
-import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -71,7 +68,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -91,25 +87,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.AuthService
-import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
-import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
 import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
-import com.jcmateus.casanarestereo.screens.menus.Configuraciones
+import com.jcmateus.casanarestereo.screens.menus.configuracion.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
 import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
@@ -123,21 +113,17 @@ import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
 import com.jcmateus.casanarestereo.screens.menus.emisoras.EmisorasScreen
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
-import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilScreen
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
-import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
 
 
+@SuppressLint("ViewModelConstructorInComposable")
 @Composable
 fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
     val dataStoreManager = application.dataStoreManager
@@ -152,9 +138,14 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@SuppressLint("UnusedMaterialScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterialScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
 @Composable
-fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, emisoraViewModel: EmisoraViewModel, usuarioPerfilViewModel: UsuarioPerfilViewModel,authService: AuthService) {
+fun HomeCasanareVista(navController: NavHostController,
+                      showScaffold: Boolean,
+                      emisoraViewModel: EmisoraViewModel,
+                      usuarioPerfilViewModel: UsuarioPerfilViewModel,
+                      authService: AuthService
+) {
     Log.d("NavController", "Home: $navController")
     var expanded by remember { mutableStateOf(false) }
     val dataStoreManager =
@@ -189,35 +180,30 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, e
     val currentRoute = currentRoute(navController) ?: ""
     var destination by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-/*
+
     suspend fun determineNavigationDestination(role: Rol?) {
         destination = when (role) {
-            Rol.ADMINISTRADOR -> Destinos.CasanareLoginScreen.ruta
+            Rol.ADMINISTRADOR -> Destinos.Pantalla1.ruta
             Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
             Rol.EMISORA -> Destinos.EmisoraVista.ruta
             null -> Destinos.CasanareLoginScreen.ruta
+            else -> Destinos.CasanareLoginScreen.ruta
         }
     }
 
-
     LaunchedEffect(key1 = Unit) {
-        val rolUsuario = dataStoreManager.getRol().first()
+        val rolUsuario = dataStoreManager.getRol().firstOrNull()
         determineNavigationDestination(rolUsuario)
-        isLoading = false
     }
- */
     LaunchedEffect(destination) {
         if (destination != null) {
             navController.navigate(destination!!)
         }
     }
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-    }else {
-        if (showScaffold) {
+    if (!isLoading) {
+
+        if (showScaffold) { // Mover el Scaffold aquí
             Scaffold(
                 scaffoldState = scaffoldState,
                 bottomBar = {
@@ -261,49 +247,24 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, e
                     Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
                     Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
                     Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
-                    Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
+                    Destinos.Pantalla12.ruta -> Configuraciones(innerPadding, navController)
                     Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
                     Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
-                    Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
+                    //Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
                     Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
                     else -> {} // Manejar otras rutas o mostrar un mensaje de error
                 }
             }
         }
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+
     }
 
 }
 
-fun shouldShowBottomBar(currentRoute: String): Boolean {
-    return currentRoute == Destinos.Pantalla1.ruta ||
-            currentRoute == Destinos.Pantalla2.ruta ||
-            currentRoute == Destinos.Pantalla8.ruta
-    //currentRoute == Destinos.Pantalla14.ruta
-}
-
-fun shouldShowTopBar(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-}
-
-fun shouldShowDrawer(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-}
 
 @Composable
 fun NavegacionInferior(
@@ -375,12 +336,12 @@ fun NavegacionInferior(
                     )
                 },
                 onClick = {
-
+                    Log.d("NavegacionInferior", "Valor de rol antes del when: $rol")
                     val rutaPerfil = when (rol) {
 
                         Rol.EMISORA -> Destinos.EmisoraVista.ruta
                         Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
-                        else -> Destinos.Pantalla1.ruta // O una ruta por defecto
+                        else -> Destinos.EmisoraVista.ruta // O una ruta por defecto
                     }
                     Log.d("NavegacionInferior", "Rol: $rol, Ruta Perfil: $rutaPerfil")
                     navController.navigate(rutaPerfil)
@@ -411,17 +372,7 @@ fun NavegacionInferior(
         }
 
     }
-    if (cerrarSesion) {
-        LaunchedEffect(Unit) {
-            authService.cerrarSesion() // Llamar a cerrarSesion() de AuthService
-            navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
-            }
-            cerrarSesion = false
-        }
-    }
+    cerrarSesion = false
 }
 
 @Composable
@@ -580,6 +531,50 @@ fun DrawerItem(
         )
 
     }
+}
+fun shouldShowBottomBar(currentRoute: String): Boolean {
+    return currentRoute == Destinos.Pantalla1.ruta ||
+            currentRoute == Destinos.Pantalla2.ruta ||
+            currentRoute == Destinos.Pantalla3.ruta ||
+            currentRoute == Destinos.Pantalla4.ruta ||
+            currentRoute == Destinos.Pantalla5.ruta ||
+            currentRoute == Destinos.Pantalla6.ruta ||
+            currentRoute == Destinos.Pantalla7.ruta ||
+            currentRoute == Destinos.Pantalla8.ruta ||
+            currentRoute == Destinos.Pantalla9.ruta ||
+            currentRoute == Destinos.Pantalla10.ruta ||
+            currentRoute == Destinos.Pantalla11.ruta ||
+            currentRoute == Destinos.Pantalla12.ruta ||
+            currentRoute == Destinos.Pantalla13.ruta ||
+            currentRoute == Destinos.Pantalla15.ruta ||
+            //currentRoute == Destinos.Pantalla16.ruta ||
+            currentRoute == Destinos.Pantalla17.ruta
+
+    //currentRoute == Destinos.Pantalla14.ruta
+}
+
+fun shouldShowTopBar(currentRoute: String): Boolean {
+    return currentRoute != Destinos.PantallaPresentacion.ruta &&
+            currentRoute != Destinos.CasanareLoginScreen.ruta &&
+            currentRoute != Destinos.SplashScreen.ruta &&
+            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
+            currentRoute != PantallaFormulario.Docentes.ruta
+}
+
+fun shouldShowDrawer(currentRoute: String): Boolean {
+    return currentRoute != Destinos.PantallaPresentacion.ruta &&
+            currentRoute != Destinos.CasanareLoginScreen.ruta &&
+            currentRoute != Destinos.SplashScreen.ruta &&
+            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
+            currentRoute != PantallaFormulario.Docentes.ruta
 }
 
 // Funcion para el resalte del la opcion seleccionada en el menu

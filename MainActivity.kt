@@ -5,7 +5,9 @@ package com.jcmateus.casanarestereo
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +49,12 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -65,6 +73,8 @@ import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewMod
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioRepository
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
+import kotlin.text.append
+import kotlin.text.firstOrNull
 
 class MainActivity : ComponentActivity() {
     private lateinit var myLocationManager: MyLocationManager
@@ -136,7 +146,7 @@ fun MainScreen(navController: NavHostController) {
     NavigationHost(
         navController,
         PaddingValues(),
-        loginViewModel,
+        loginViewModel, // Pasar loginViewModel
         formularioViewModel = FormularioViewModel(),
         authService,
         emisoraViewModel,
@@ -180,7 +190,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 text = "BIENVENIDO A:",
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 43.sp,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.background,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -196,13 +206,13 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.background
             )
             Text(
                 text = "DONDE LATE EL CORAZÓN DEL LLANO",
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.background
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -238,7 +248,9 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
+
             // Mostrar la animación si showAnimation es true
+
             AnimatedVisibility(visible = showAnimation) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -247,8 +259,9 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(
+            Button(
                 onClick = {
                     navController.navigate(PantallaFormulario.SeleccionRol.ruta)
                 },
@@ -257,25 +270,26 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     .padding(horizontal = 16.dp)
                     .height(56.dp),
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onBackground
+                colors = ButtonDefaults.buttonColors(
+                    contentColor = MaterialTheme.colorScheme.scrim
                 )
             ) {
                 Text(
-                    "En otro momento",
-                    color = MaterialTheme.colorScheme.onBackground
+                    "Realizar Encuesta",
+                    color = MaterialTheme.colorScheme.background
                 )
 
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+
             Row(
                 modifier = Modifier.padding(15.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "¿No tienes cuenta?",
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.background,
                 )
                 Text(
                     "Registrate",
@@ -289,6 +303,8 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 )
             }
         }
+
+
         Text(
             text = "Beneficios de tener una cuenta",
             color = Color.White,
@@ -296,6 +312,49 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 50.dp)
 
+        )
+             /*
+            Spacer(modifier = Modifier.weight(1f)) // Empuja el texto hacia abajo
+            PoliticasDePrivacidad(navController = navController
+              */
+        }
+    }
+
+@Composable
+fun PoliticasDePrivacidad(navController: NavHostController) {
+    val context = LocalContext.current
+    val annotatedText = buildAnnotatedString {
+        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.background)) {
+            append("Al continuar, aceptas nuestras ")
+        }
+        pushStringAnnotation(tag = "politicas", annotation = "https://sites.google.com/cstar.com.co/casanareestereonetwork/pol%C3%ADticas-de-privacidad")
+        withStyle(
+            style = SpanStyle(
+                color = MaterialTheme.colorScheme.error,
+                textDecoration = TextDecoration.Underline
+            )
+        ) {
+            append("Políticas de Privacidad")
+        }
+        pop()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        ClickableText(
+            text = annotatedText,
+            onClick = { offset ->
+                annotatedText.getStringAnnotations(tag = "politicas", start = offset, end = offset)
+                    .firstOrNull()?.let { annotation ->
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
+                        context.startActivity(intent)
+                    }
+            },
+            style = MaterialTheme.typography.bodySmall.copy(textAlign = TextAlign.Center)
         )
     }
 }

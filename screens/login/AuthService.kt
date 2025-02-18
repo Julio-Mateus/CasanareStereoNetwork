@@ -4,6 +4,7 @@ package com.jcmateus.casanarestereo.screens.login
 import android.content.Context
 import android.util.Log
 import android.util.Patterns
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -37,7 +38,7 @@ class AuthService(
     private val firebaseAuth: FirebaseAuth,
     private val db: FirebaseFirestore,
     private val dataStoreManager: DataStoreManager
-) {
+) : ViewModel() {
 
     // Flujo de estado de autenticación
     private val _authState = MutableStateFlow<EstadoAutenticacion>(EstadoAutenticacion.Loading)
@@ -45,7 +46,6 @@ class AuthService(
 
     init {
         Log.d("AuthService", "init: AuthService inicializado")
-        checkSession()
     }
 
     fun checkSession() {
@@ -54,22 +54,24 @@ class AuthService(
         if (currentUser != null) {
             Log.d("AuthService", "checkSession: Sesión activa encontrada para: ${currentUser.uid}")
             // Si hay un usuario, obtener el rol y actualizar el estado
-            runBlocking {
-                launch {
-                    val rol = obtenerRolUsuario(currentUser.uid)
+            viewModelScope.launch {
+                val rol = obtenerRolUsuario(currentUser.uid)
+                if (rol != null) {
                     _authState.value = EstadoAutenticacion.LoggedIn(rol)
                     dataStoreManager.saveIsLoggedIn(true)
                     Log.d("AuthService", "checkSession: isLoggedIn guardado como true")
+                } else {
+                    _authState.value = EstadoAutenticacion.LoggedOut
+                    dataStoreManager.saveIsLoggedIn(false)
+                    Log.d("AuthService", "checkSession: isLoggedIn guardado como false")
                 }
             }
         } else {
             Log.d("AuthService", "checkSession: No hay sesión activa")
             _authState.value = EstadoAutenticacion.LoggedOut
-            runBlocking {
-                launch {
-                    dataStoreManager.saveIsLoggedIn(false)
-                    Log.d("AuthService", "checkSession: isLoggedIn guardado como false")
-                }
+            viewModelScope.launch {
+                dataStoreManager.saveIsLoggedIn(false)
+                Log.d("AuthService", "checkSession: isLoggedIn guardado como false")
             }
         }
     }
@@ -176,17 +178,19 @@ class AuthService(
                         )
                     }
                     else -> { // Rol.USUARIO o Rol.ADMINISTRADOR
-                        User(
+                        PerfilUsuario(
                             uid = userId,
                             nombre = user.displayName ?: "Sin nombre",
                             email = user.email ?: "",
-                            rol = selectedRol?.name,
+                            rol = selectedRol?.name.toString(),
                             avatarUrl = null,
                             frase = null,
                             profesion = null,
                             emisorasFavoritas = emptyList(),
                             ciudad = null,
-                            departamento = null
+                            departamento = null,
+                            latitud = latitud,
+                            longitud = longitud
                         )
                     }
                 }
@@ -194,7 +198,7 @@ class AuthService(
                 // Guardar el objeto en Firestore
                 if (newUser is PerfilEmisora) {
                     db.collection(collection).document(userId).set(newUser).await()
-                } else if (newUser is User) {
+                } else if (newUser is PerfilUsuario) {
                     db.collection(collection).document(userId).set(newUser.toMap()).await()
                 }
 
@@ -268,6 +272,7 @@ class AuthService(
                 _authState.value = EstadoAutenticacion.LoggedIn(rol)
                 dataStoreManager.saveIsLoggedIn(true)
                 Log.d("AuthService", "crearUsuarioConCorreoYContrasena: isLoggedIn guardado como true")
+                checkSession()
             } else {
                 _authState.value =
                     EstadoAutenticacion.Error("Error al crear el usuario")
@@ -402,36 +407,6 @@ class AuthService(
     fun isValidEmail(email: String): Boolean {
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
-
-    data class User(
-        val uid: String? = null,
-        val nombre: String? = null,
-        val email: String? = null,
-        val avatarUrl: String? = null,
-        val frase: String? = null, // Cambiado de 'quote' a 'frase'
-        val profesion: String? = null, // Cambiado de 'profession' a 'profesion'
-        val rol: String? = null,
-        val emisorasFavoritas: List<String> = emptyList(),
-        val ciudad: String? = null,
-        val departamento: String? = null
-    ) {
-        fun toMap(): Map<String, Any?> {
-            return mapOf(
-                "uid" to uid,
-                "nombre" to nombre,
-                "email" to email,
-                "avatarUrl" to avatarUrl,
-                "frase" to frase,
-                "profesion" to profesion,
-                "rol" to rol,
-                "emisorasFavoritas" to emisorasFavoritas,
-                "ciudad" to ciudad,
-                "departamento" to departamento
-            )
-        }
-    }
-
-
 }
 
 

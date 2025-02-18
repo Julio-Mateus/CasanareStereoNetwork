@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -117,23 +118,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun CasanareLoginScreen(
     navController: NavHostController,
-    emisoraViewModel: EmisoraViewModel
+    emisoraViewModel: EmisoraViewModel,
+    loginViewModel: LoginScreenViewModel
 ) {
     Log.d("CasanareLoginScreen", "CasanareLoginScreen: Iniciando CasanareLoginScreen")
     val application = LocalContext.current.applicationContext as HomeApplication
     val dataStoreManager = application.dataStoreManager
-    val viewModel: LoginScreenViewModel = remember {
-        LoginScreenViewModelFactory(
-            dataStoreManager,
-            authService = AuthService(
-                application.firebaseAuth,
-                application.db,
-                application.dataStoreManager,
-
-            ), // Pasar firebaseAuth a AuthService
-            firebaseAuth = application.firebaseAuth // Pasar firebaseAuth a LoginScreenViewModelFactory
-        ).create(LoginScreenViewModel::class.java)
-    }
+    val viewModel = loginViewModel
     var isUsuarioChecked by remember { mutableStateOf(false) }
     var isEmisoraChecked by remember { mutableStateOf(false) }
     var isUsuarioCheckedBeforeEmisora by remember { mutableStateOf(false) }
@@ -220,12 +211,20 @@ fun CasanareLoginScreen(
             Log.e("CasanareLoginScreen", "launcher: Resultado no OK")
         }
     }
+    val navigateTo by loginViewModel.navigateTo.collectAsStateWithLifecycle()
+
+    LaunchedEffect(key1 = navigateTo) {
+        if (navigateTo != null) {
+            navController.navigate(navigateTo!!)
+            loginViewModel.clearSuccessMessage() // Limpiar el mensaje y la ruta después de navegar
+        }
+    }
 
     // Lógica para asegurar que solo se pueda seleccionar un rol a la vez
-    LaunchedEffect(key1 = isUsuarioChecked, key2 = isEmisoraChecked) {
+     LaunchedEffect(key1 = isUsuarioChecked, key2 = isEmisoraChecked) {
         if (isUsuarioChecked && isEmisoraChecked) {
             // Si ambos están seleccionados, deseleccionar el que se seleccionó primero
-            if (isUsuarioCheckedBeforeEmisora) {
+            if (isUsuarioChecked) {
                 isEmisoraChecked = false
             } else {
                 isUsuarioChecked = false
@@ -278,41 +277,6 @@ fun CasanareLoginScreen(
             }
         }
     )
-    LaunchedEffect(key1 = authState.value) {
-    Log.d("CasanareLoginScreen", "LaunchedEffect activado. authState: ${authState.value}")
-    when (val state = authState.value) {
-        is EstadoAutenticacion.LoggedIn -> {
-            if (state.rol == Rol.EMISORA) {
-                navController.navigate(Destinos.EmisoraVista.ruta) {
-                    popUpTo(Destinos.CasanareLoginScreen.ruta) { inclusive = true }
-                }
-            } else if (state.rol == Rol.USUARIO) {
-                navController.navigate(Destinos.UsuarioPerfilScreen.ruta) {
-                    popUpTo(Destinos.CasanareLoginScreen.ruta) { inclusive = true }
-                }
-            } else if (state.rol == Rol.ADMINISTRADOR) {
-                navController.navigate(Destinos.EmisoraVista.ruta) {
-                    popUpTo(Destinos.CasanareLoginScreen.ruta) { inclusive = true }
-                }
-            } else {
-                Log.e("CasanareLoginScreen", "Rol es null")
-                // Manejar el caso en que el rol es null
-                // Puedes mostrar un mensaje de error o redirigir a una pantalla de error
-            }
-        }
-
-        is EstadoAutenticacion.Error -> {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    message = state.message,
-                    duration = SnackbarDuration.Short
-                )
-            }
-        }
-
-        else -> {}
-    }
-}
     Surface(
         modifier = Modifier
             .fillMaxSize(),
@@ -365,18 +329,19 @@ fun CasanareLoginScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onBackground // Cambia el color del texto para que se vea sobre la imagen
+                            color = MaterialTheme.colorScheme.surfaceBright // Cambia el color del texto para que se vea sobre la imagen
                         )
                         Text(
                             text = "DONDE LATE EL CORAZÓN DEL LLANO",
                             style = MaterialTheme.typography.bodySmall,
                             //fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                             fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onBackground  // Cambia el color del texto para que se vea sobre la imagen
+                            color = MaterialTheme.colorScheme.surfaceBright  // Cambia el color del texto para que se vea sobre la imagen
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+                var CheckTerminos by remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
@@ -384,7 +349,7 @@ fun CasanareLoginScreen(
                         //.absoluteOffset(x = 0.dp, y = (-403).dp)
                         .clip(RoundedCornerShape(15.dp))
                         .size(40.dp)
-                        .background(MaterialTheme.colorScheme.onBackground)
+                        .background(MaterialTheme.colorScheme.surfaceBright)
                         .clickable {
                             Log.d(
                                 "CasanareLoginScreen",
@@ -493,10 +458,10 @@ fun CasanareLoginScreen(
                             },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = MaterialTheme.colorScheme.primaryContainer,
-                                uncheckedColor = MaterialTheme.colorScheme.onBackground
+                                uncheckedColor = MaterialTheme.colorScheme.surfaceBright
                             )
                         )
-                        Text("Usuario", color = MaterialTheme.colorScheme.onBackground)
+                        Text("Usuario", color = MaterialTheme.colorScheme.surfaceBright)
 
                         Checkbox(
                             checked = isEmisoraChecked,
@@ -506,16 +471,16 @@ fun CasanareLoginScreen(
                             },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = MaterialTheme.colorScheme.primaryContainer,
-                                uncheckedColor = MaterialTheme.colorScheme.onBackground
+                                uncheckedColor = MaterialTheme.colorScheme.surfaceBright
                             )
                         )
-                        Text("Emisora", color = MaterialTheme.colorScheme.onBackground)
+                        Text("Emisora", color = MaterialTheme.colorScheme.surfaceBright)
                     }
                 }
                 if (showLoginForm.value) {
                     Text(
                         text = "Crea una cuenta",
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = MaterialTheme.colorScheme.surfaceBright,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                     )
@@ -529,7 +494,7 @@ fun CasanareLoginScreen(
                         text = "Inicia sesión",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.surfaceBright
                     )
                     UserForm(
                         isCreateAccount = false,
@@ -539,37 +504,7 @@ fun CasanareLoginScreen(
                 }
             }
         }
-        // Iniciar sesión con Google si se ha solicitado y se han aceptado los términos
-        LaunchedEffect(key1 = googleSignInRequested, key2 = CheckTerminos) {
-            Log.d(
-                "CasanareLoginScreen",
-                "LaunchedEffect: Iniciando LaunchedEffect"
-            ) // Log: Inicio del LaunchedEffect
-            Log.d(
-                "CasanareLoginScreen",
-                "LaunchedEffect: googleSignInRequested = $googleSignInRequested, CheckTerminos = $CheckTerminos"
-            ) // Log: Valores de las variables
-            if (googleSignInRequested && CheckTerminos) {
-                Log.d(
-                    "CasanareLoginScreen",
-                    "LaunchedEffect: googleSignInRequested y CheckTerminos son true"
-                ) // Log: Condición cumplida
-                val opciones = GoogleSignInOptions
-                    .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestIdToken(token)
-                    .requestEmail()
-                    .build()
-                Log.d(
-                    "CasanareLoginScreen",
-                    "LaunchedEffect: Opciones de GoogleSignInOptions creadas"
-                ) // Log: Opciones creadas
-                val googleSignInClient = getClient(context, opciones)
-            }
-            Log.d(
-                "CasanareLoginScreen",
-                "LaunchedEffect: Finalizando LaunchedEffect"
-            ) // Log: Fin del LaunchedEffect
-        }
+
         Spacer(modifier = Modifier.padding(10.dp))
         Row(
             modifier = Modifier.padding(top = 700.dp),
@@ -579,7 +514,7 @@ fun CasanareLoginScreen(
                 showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
             val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
             Text(
-                text = text1, color = MaterialTheme.colorScheme.onBackground,
+                text = text1, color = MaterialTheme.colorScheme.surfaceBright,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Light,
             )
@@ -591,43 +526,6 @@ fun CasanareLoginScreen(
 
             )
         }
-        /*
-        if (showLoginForm.value) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val annotatedString = buildAnnotatedString {
-                    withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
-                        append("términos y condiciones")
-                    }
-                }
-
-                if (showCheckbox) {
-                    Checkbox(
-                        checked = CheckTerminos,
-                        onCheckedChange = { CheckTerminos = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary, // <- Usar color primario del tema
-                            uncheckedColor = MaterialTheme.colorScheme.onSurface, //<- Usar color de texto sobre superficie
-                        )
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Text(
-                    text = annotatedString,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.clickable {
-                        // Abrir la página de términos y condiciones
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://casanarestero.blogspot.com/p/terminos-y-condiciones-de-politica-y.html")
-                        )
-                        context.startActivity(intent)
-                    }
-                )
-            }
-        }
-        */
     }
     // Mostrar SnackbarHost
     SnackbarHost(hostState = snackbarHostState)
@@ -721,7 +619,7 @@ fun UserForm(
                     onCheckedChange = { checkTerminos = it },
                     colors = CheckboxDefaults.colors(
                         checkedColor = MaterialTheme.colorScheme.primaryContainer, // <- Usar color primario del tema
-                        uncheckedColor = MaterialTheme.colorScheme.onBackground, //<- Usar color de texto sobre superficie
+                        uncheckedColor = MaterialTheme.colorScheme.surfaceBright, //<- Usar color de texto sobre superficie
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -732,7 +630,7 @@ fun UserForm(
                 }
                 Text(
                     text = annotatedString,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.surfaceBright,
                     modifier = Modifier.clickable {
                         // Abrir la página de términos y condiciones
                         val intent = Intent(
@@ -796,11 +694,7 @@ fun UserForm(
     }
 }
 
-enum class Rol {
-    USUARIO,
-    EMISORA,
-    ADMINISTRADOR
-}
+
 
 @Composable
 fun SubmitButton(
@@ -864,10 +758,10 @@ fun PasswordInput(
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
             // Usamos los parámetros correctos de OutlinedTextFieldDefaults.colors()
-            focusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando está enfocado
-            unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando no está enfocado
-            focusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando está enfocado
-            unfocusedBorderColor = Color.White, // Color del borde cuando no está enfocado
+            focusedTextColor = MaterialTheme.colorScheme.surfaceBright, // Color del texto cuando está enfocado
+            unfocusedTextColor = MaterialTheme.colorScheme.surfaceBright, // Color del texto cuando no está enfocado
+            focusedBorderColor = MaterialTheme.colorScheme.primary, // Color del borde cuando está enfocado
+            unfocusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando no está enfocado
             cursorColor = MaterialTheme.colorScheme.onPrimary, // Color del cursor
         ),
         keyboardOptions = KeyboardOptions(
@@ -884,7 +778,7 @@ fun PasswordInput(
             }
         },
         textStyle = TextStyle(
-            color = MaterialTheme.colorScheme.onBackground, // Color del texto
+            color = MaterialTheme.colorScheme.surfaceBright, // Color del texto
             fontSize = 18.sp // Tamaño de la fuente
         )
     )
@@ -907,7 +801,7 @@ fun PasswordVisibleIcon(
         Icon(
             imageVector = image,
             contentDescription = "",
-            tint = MaterialTheme.colorScheme.onBackground
+            tint = MaterialTheme.colorScheme.surfaceBright
         )
     }
 }
@@ -952,10 +846,10 @@ fun InputField(
             .fillMaxWidth(),
         colors = OutlinedTextFieldDefaults.colors(
             // Usamos los parámetros correctos de OutlinedTextFieldDefaults.colors()
-            focusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando está enfocado
-            unfocusedTextColor = MaterialTheme.colorScheme.onBackground, // Color del texto cuando no está enfocado
-            focusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando está enfocado
-            unfocusedBorderColor = Color.White, // Color del borde cuando no está enfocado
+            focusedTextColor = MaterialTheme.colorScheme.surfaceBright, // Color del texto cuando está enfocado
+            unfocusedTextColor = MaterialTheme.colorScheme.surfaceBright, // Color del texto cuando no está enfocado
+            focusedBorderColor = MaterialTheme.colorScheme.primary, // Color del borde cuando está enfocado
+            unfocusedBorderColor = MaterialTheme.colorScheme.onPrimary, // Color del borde cuando no está enfocado
             cursorColor = MaterialTheme.colorScheme.onPrimary, // Color del cursor
 
         ),
@@ -964,7 +858,7 @@ fun InputField(
             imeAction = imeAction // Añadido: Acción del teclado
         ),
         textStyle = TextStyle(
-            color = MaterialTheme.colorScheme.onBackground, // Color del texto
+            color = MaterialTheme.colorScheme.surfaceBright, // Color del texto
             fontSize = 18.sp // Tamaño de la fuente
         )
     )
@@ -974,14 +868,17 @@ fun InputField(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PreviewContent() {
-    val context = LocalContext.current
-    val application = context.applicationContext as HomeApplication // Obtener HomeApplication
+    //val context = LocalContext.current
+    //val application = context.applicationContext as HomeApplication // Obtener HomeApplication
     val navController = rememberNavController() // Usar rememberNavController()
-    val emisoraViewModel = application.emisoraViewModel // Obtener emisoraViewModel de HomeApplication
+    //val emisoraViewModel = application.emisoraViewModel // Obtener emisoraViewModel de HomeApplication
+    val emisoraViewModel: EmisoraViewModel = viewModel()
+    val loginViewModel: LoginScreenViewModel = viewModel()
 
     CasanareLoginScreen(
-        navController,
-        emisoraViewModel = emisoraViewModel
+        navController = navController,
+        emisoraViewModel = emisoraViewModel,
+        loginViewModel = loginViewModel
     )
 }
 

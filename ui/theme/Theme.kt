@@ -42,7 +42,7 @@ val md_theme_light_outline = Color(0xFF847373) // Gris claro (borde)
 val md_theme_light_inverseOnSurface = Color(0xFFFBEEED) // Blanco sobre superficie inversa
 val md_theme_light_inverseSurface = Color(0xFF352F2F) // Gris oscuro (superficie inversa)
 val md_theme_light_inversePrimary = Color(0xFFFFB3AE) // Rojo claro (primario inverso)
-val md_theme_light_shadow = Color(0xFF000000) // Negro (sombra)
+val md_theme_light_shadow = Color(0xFFFFFFFF) // Blanco sobre negro
 val md_theme_light_surfaceTint = Color(0xFFB71C1C) // Rojo principal (tinte de superficie)
 val md_theme_light_outlineVariant = Color(0xFFD6C2C2) // Gris claro (variante de borde)
 val md_theme_light_scrim = Color(0xFF000000) // Negro (scrim)
@@ -74,7 +74,7 @@ val md_theme_dark_outline = Color(0xFF9F8C8C) // Gris oscuro (borde)
 val md_theme_dark_inverseOnSurface = Color(0xFF201A1A) // Negro sobre superficie inversa
 val md_theme_dark_inverseSurface = Color(0xFFECE0DF) // Blanco (superficie inversa)
 val md_theme_dark_inversePrimary = Color(0xFFB71C1C) // Rojo principal (primario inverso)
-val md_theme_dark_shadow = Color(0xFF000000) // Negro (sombra)
+val md_theme_dark_shadow = Color(0xFFFFFFFF) // Blanco sobre negro
 val md_theme_dark_surfaceTint = Color(0xFFFFB3AE) // Rojo claro (tinte de superficie)
 val md_theme_dark_outlineVariant = Color(0xFF524343) // Gris oscuro (variante de borde)
 val md_theme_dark_scrim = Color(0xFF000000) // Negro (scrim)
@@ -109,6 +109,8 @@ private val darkColorScheme = darkColorScheme(
     surfaceTint = md_theme_dark_surfaceTint,
     outlineVariant = md_theme_dark_outlineVariant,
     scrim = md_theme_dark_scrim,
+    surfaceBright = md_theme_dark_shadow
+
 
 
 )
@@ -143,6 +145,7 @@ private val LightColorScheme = lightColorScheme(
     surfaceTint = md_theme_light_surfaceTint,
     outlineVariant = md_theme_light_outlineVariant,
     scrim = md_theme_light_scrim,
+    surfaceBright = md_theme_light_shadow
 )
 
 @Composable

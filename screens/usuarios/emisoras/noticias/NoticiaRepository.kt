@@ -12,38 +12,42 @@ import kotlin.toString
 
 class NoticiaRepository(private val db: FirebaseFirestore) {
 
-    suspend fun guardarNoticia(noticia: Contenido.Noticia, userId: String) {
-        val id = UUID.randomUUID().toString() // Generate a unique ID
-        val noticiaWithId = noticia.copy(id = id) // Assign the ID to the noticia object
-        db.collection("emisoras").document(userId).collection("noticias").document(id).set(noticiaWithId).await()
+    suspend fun guardarNoticia(noticia: Contenido.Noticia, emisoraId: String): String {
+        val id = UUID.randomUUID().toString()
+        val noticiaWithId = noticia.copy(id = id)
+        val docRef = db.collection("emisoras").document(emisoraId).collection("noticias").document(id)
+        docRef.set(noticiaWithId).await()
+        return id
     }
 
-    suspend fun obtenerNoticias(userId: String): List<Contenido.Noticia> {
-        return db.collection("emisoras").document(userId).collection("noticias")
+    suspend fun obtenerNoticias(emisoraId: String): List<Contenido.Noticia> {
+        return db.collection("emisoras").document(emisoraId).collection("noticias")
             .get().await().toObjects(Contenido.Noticia::class.java)
     }
 
-    suspend fun obtenerNoticiasPorCategoria(userId: String, categoria: String): List<Contenido.Noticia> {
-        return db.collection("emisoras").document(userId).collection("noticias")
+    suspend fun obtenerNoticiasPorCategoria(emisoraId: String, categoria: String): List<Contenido.Noticia> {
+        return db.collection("emisoras").document(emisoraId).collection("noticias")
             .whereEqualTo("categoria", categoria)
             .get().await().toObjects(Contenido.Noticia::class.java)
     }
 
-    suspend fun obtenerNoticia(noticiaId: String): Contenido.Noticia? {
-        return db.collectionGroup("noticias").whereEqualTo("id", noticiaId).get().await()
-            .toObjects(Contenido.Noticia::class.java).firstOrNull()
+    suspend fun obtenerNoticia(noticiaId: String, emisoraId: String): Contenido.Noticia? {
+        val docRef = db.collection("emisoras").document(emisoraId).collection("noticias").document(noticiaId)
+        val documentSnapshot = docRef.get().await()
+        return if (documentSnapshot.exists()) {
+            documentSnapshot.toObject(Contenido.Noticia::class.java)
+        } else {
+            null
+        }
     }
 
-    suspend fun eliminarNoticia(noticiaId: String, userId: String) {
-        // Aquí debes usar el userId para eliminar la noticia de la base de datos
-        // Ejemplo con Firebase:
-        val db = FirebaseFirestore.getInstance()
-        val docRef = db.collection("usuarios").document(userId).collection("noticias").document(noticiaId)
+    suspend fun eliminarNoticia(noticiaId: String, emisoraId: String) {
+        val docRef = db.collection("emisoras").document(emisoraId).collection("noticias").document(noticiaId)
         docRef.delete().await()
     }
 
-    suspend fun actualizarNoticia(noticiaId: String, noticia: Contenido.Noticia) {
-        db.collectionGroup("noticias").whereEqualTo("id", noticiaId).get().await()
-            .documents.firstOrNull()?.reference?.set(noticia)?.await()
+    suspend fun actualizarNoticia(noticiaId: String, noticia: Contenido.Noticia, emisoraId: String) {
+        val docRef = db.collection("emisoras").document(emisoraId).collection("noticias").document(noticiaId)
+        docRef.set(noticia).await()
     }
 }

@@ -262,42 +262,6 @@ fun ProfileSection(
         }
     }
 }
-
-@Composable
-fun PlaybackWaves(isPlaying: Boolean, waveSize: Dp, modifier: Modifier = Modifier) {
-    val waveHeights = remember { mutableStateListOf<Float>() }
-    val coroutineScope = rememberCoroutineScope()
-
-    // Inicializar waveHeights con valores aleatorios
-    LaunchedEffect(Unit) {
-        repeat(10) { // Ajusta el número de palitos
-            waveHeights.add(Random.nextFloat() * 40f) // Ajusta la altura máxima
-        }
-    }
-
-    LaunchedEffect(key1 = isPlaying) {
-        if (isPlaying) {
-            while (true) {
-                waveHeights.forEachIndexed { index, _ ->
-                    waveHeights[index] = Random.nextFloat() * 40f
-                }
-                delay(50) // Ajusta la duración de la animación
-            }
-        }
-    }
-
-    Canvas(modifier = Modifier.size(waveSize)) {
-        val barWidth = size.width / waveHeights.size
-        waveHeights.forEachIndexed { index, height ->
-            drawRect(
-                color = Color.White, // Cambia el color si es necesario
-                topLeft = Offset(index * barWidth, size.height - height),
-                size = Size(barWidth, height)
-            )
-        }
-    }
-}
-
 @Composable
 fun NavigationButtons(navController: NavHostController) {
     Column(
@@ -360,6 +324,43 @@ fun NavigationButtons(navController: NavHostController) {
         }
     }
 }
+@Composable
+fun PlaybackWaves(isPlaying: Boolean, waveSize: Dp, modifier: Modifier = Modifier) {
+    val waveHeights = remember { mutableStateListOf<Float>() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Inicializar waveHeights con valores aleatorios
+    LaunchedEffect(Unit) {
+        repeat(10) { // Ajusta el número de palitos
+            waveHeights.add(Random.nextFloat() * 40f) // Ajusta la altura máxima
+        }
+    }
+
+    LaunchedEffect(key1 = isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                waveHeights.forEachIndexed { index, _ ->
+                    waveHeights[index] = Random.nextFloat() * 40f
+                }
+                delay(50) // Ajusta la duración de la animación
+            }
+        }
+    }
+
+    Canvas(modifier = Modifier.size(waveSize)) {
+        val barWidth = size.width / waveHeights.size
+        waveHeights.forEachIndexed { index, height ->
+            drawRect(
+                color = Color.White, // Cambia el color si es necesario
+                topLeft = Offset(index * barWidth, size.height - height),
+                size = Size(barWidth, height)
+            )
+        }
+    }
+}
+
+
+
 
 @SuppressLint("ViewModelConstructorInComposable")
 @Composable
