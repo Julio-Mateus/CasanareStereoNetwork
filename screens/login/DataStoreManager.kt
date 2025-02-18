@@ -3,6 +3,7 @@ package com.jcmateus.casanarestereo.screens.login
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -21,131 +22,159 @@ import kotlin.text.set
 import kotlin.toString
 
 
-// Define the DataStore
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
-
+// Define the DataStore as a top-level extension function
 class DataStoreManager(private val dataStore: DataStore<Preferences>) {
 
-    // Keys for DataStore
     companion object {
+        private const val TAG = "DataStoreManager"
+        const val DATASTORE_NAME = "user_preferences"
+
         val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
         val LOCATION_PERMISSION_GRANTED = booleanPreferencesKey("location_permission_granted")
         val SHOW_DIALOG = booleanPreferencesKey("show_dialog")
         val ROL_USUARIO = stringPreferencesKey("rol_usuario")
         val TERMS_ACCEPTED = booleanPreferencesKey("terms_accepted")
         val HAS_SHOWN_PRESENTATION = booleanPreferencesKey("has_shown_presentation")
+        val HAS_COMPLETED_FORM = booleanPreferencesKey("has_completed_form")
+        val IS_CREATING_ACCOUNT = booleanPreferencesKey("is_creating_account")
+        val IS_FIRST_TIME_APP_OPEN = booleanPreferencesKey("is_first_time_app_open")
     }
 
-    // Clear user role
-    suspend fun clearRolUsuario() {
+    fun getIsCreatingAccount(): Flow<Boolean> = dataStore.data
+        .handleDataStoreError()
+        .map { preferences ->
+            preferences[IS_CREATING_ACCOUNT] ?: false
+        }
+
+    suspend fun saveIsCreatingAccount(value: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_CREATING_ACCOUNT] = value
+        }
+    }
+
+    suspend fun clearRol() {
         dataStore.edit { preferences ->
             preferences.remove(ROL_USUARIO)
         }
     }
 
-    // Clear logged in status
     suspend fun clearIsLoggedIn() {
         dataStore.edit { preferences ->
             preferences.remove(IS_LOGGED_IN)
         }
     }
 
-    // Check if it's the first time the app is opened
     fun isFirstTimeAppOpen(): Flow<Boolean> {
-        return getTermsAccepted().map { termsAccepted ->
-            !termsAccepted // If terms are not accepted, it's the first time
+        return dataStore.data.map { preferences ->
+            !(preferences[TERMS_ACCEPTED] ?: false)
         }
     }
 
-    // Save that the app has been opened and the presentation has been shown
     suspend fun saveAppOpened() {
         saveTermsAccepted(true)
         savePresentationShown()
     }
 
-    // Get if terms have been accepted
     fun getTermsAccepted(): Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[TERMS_ACCEPTED] ?: false // Default value: false
+        preferences[TERMS_ACCEPTED] ?: false
     }
 
-    // Save if terms have been accepted
     suspend fun saveTermsAccepted(accepted: Boolean) {
         dataStore.edit { preferences ->
             preferences[TERMS_ACCEPTED] = accepted
         }
     }
 
-    // Save that the presentation has been shown
     suspend fun savePresentationShown() {
         dataStore.edit { preferences ->
             preferences[HAS_SHOWN_PRESENTATION] = true
         }
     }
 
-    // Get if the presentation has been shown
     fun getHasShownPresentation(): Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[HAS_SHOWN_PRESENTATION] ?: false // Default value: false
+        preferences[HAS_SHOWN_PRESENTATION] ?: false
     }
 
-    // Save user role
-    suspend fun saveRolUsuario(rol: Rol) {
+    suspend fun saveRol(rol: Rol) {
         dataStore.edit { preferences ->
             preferences[ROL_USUARIO] = rol.name
         }
     }
 
-    // Get user role
-    fun getRolUsuario(): Flow<Rol> {
+    fun getRol(): Flow<Rol?> {
         return dataStore.data
-            .catch { exception ->
-                if (exception is IOException) {
-                    emit(emptyPreferences())
-                } else {
-                    throw exception
-                }
-            }
+            .handleDataStoreError()
             .map { preferences ->
-                try {
-                    Rol.valueOf(preferences[ROL_USUARIO] ?: Rol.NO_DEFINIDO.name)
-                } catch (e: IllegalArgumentException) {
-                    Rol.NO_DEFINIDO
+                preferences[ROL_USUARIO]?.let {
+                    Rol.valueOf(it)
                 }
             }
     }
 
-    // Save if the user is logged in
     suspend fun saveIsLoggedIn(isLoggedIn: Boolean) {
         dataStore.edit { preferences ->
             preferences[IS_LOGGED_IN] = isLoggedIn
         }
     }
 
-    // Get if the user is logged in
     fun getIsLoggedIn(): Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[IS_LOGGED_IN] ?: false
     }
 
-    // Save if location permission is granted
     suspend fun setLocationPermissionGranted(value: Boolean) {
         dataStore.edit { preferences ->
             preferences[LOCATION_PERMISSION_GRANTED] = value
         }
     }
 
-    // Get if location permission is granted
-    suspend fun getLocationPermissionGranted(): Boolean {
-        return dataStore.data.first()[LOCATION_PERMISSION_GRANTED] == true
-    }
+    fun getLocationPermissionGranted(): Flow<Boolean> = dataStore.data
+        .handleDataStoreError()
+        .map { preferences ->
+            preferences[LOCATION_PERMISSION_GRANTED] ?: false
+        }
 
-    // Save if the dialog should be shown
     suspend fun setShowDialog(value: Boolean) {
         dataStore.edit { preferences ->
             preferences[SHOW_DIALOG] = value
         }
     }
 
-    // Get if the dialog should be shown
-    suspend fun getShowDialog(): Boolean {
-        return dataStore.data.first()[SHOW_DIALOG] != false // Show by default the first time
+    fun getShowDialog(): Flow<Boolean> = dataStore.data
+        .handleDataStoreError()
+        .map { preferences ->
+            preferences[SHOW_DIALOG] ?: true
+        }
+    suspend fun saveHasCompletedForm(value: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[HAS_COMPLETED_FORM] = value
+        }
     }
+
+    fun getHasCompletedForm(): Flow<Boolean> = dataStore.data
+        .handleDataStoreError()
+        .map { preferences ->
+            preferences[HAS_COMPLETED_FORM] ?: false
+        }
+    fun getIsFirstTimeAppOpen(): Flow<Boolean> = dataStore.data
+        .handleDataStoreError()
+        .map { preferences ->
+            preferences[IS_FIRST_TIME_APP_OPEN] ?: true
+        }
+
+    suspend fun setIsFirstTimeAppOpen(value: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_FIRST_TIME_APP_OPEN] = value
+        }
+    }
+
+    private fun <T> Flow<T>.handleDataStoreError(): Flow<T> =
+        catch { e ->
+            if (e is IOException) {
+                Log.e(TAG, "Error reading from DataStore: ${e.message}")
+                emit(emptyPreferences() as T)
+            } else {
+                Log.e(TAG, "Unexpected error reading from DataStore: ${e.message}")
+                throw e
+            }
+        }
 }

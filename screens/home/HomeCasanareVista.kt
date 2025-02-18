@@ -28,15 +28,13 @@ package com.jcmateus.casanarestereo.screens.home
 //noinspection UsingMaterialAndMaterial3Libraries
 import android.annotation.SuppressLint
 import android.os.Build
-import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -64,12 +62,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -89,25 +87,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.R
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
 import com.jcmateus.casanarestereo.screens.login.AuthService
-import com.jcmateus.casanarestereo.screens.login.CasanareLoginScreen
 import com.jcmateus.casanarestereo.screens.login.DataStoreManager
-import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModelFactory
 import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.menus.CerrarSesionButton
 import com.jcmateus.casanarestereo.screens.menus.Clasificados
-import com.jcmateus.casanarestereo.screens.menus.Configuraciones
+import com.jcmateus.casanarestereo.screens.menus.configuracion.Configuraciones
 import com.jcmateus.casanarestereo.screens.menus.Contactenos
 import com.jcmateus.casanarestereo.screens.menus.Inicio
 import com.jcmateus.casanarestereo.screens.menus.Mi_Zona
@@ -121,24 +113,21 @@ import com.jcmateus.casanarestereo.screens.menus.Se_Le_Tiene
 import com.jcmateus.casanarestereo.screens.menus.VideosYoutubeView
 import com.jcmateus.casanarestereo.screens.menus.Youtube_Casanare
 import com.jcmateus.casanarestereo.screens.menus.emisoras.EmisorasScreen
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
-import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista
-import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilScreen
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
-import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 //import kotlinx.coroutines.flow.internal.NoOpContinuation.context
 //import kotlin.coroutines.jvm.internal.CompletedContinuation.context
 
 
+@SuppressLint("ViewModelConstructorInComposable")
 @Composable
 fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
     val dataStoreManager = application.dataStoreManager
-    val authService = AuthService(application.firebaseAuth, dataStoreManager) // Crear instancia de AuthService
+    val authService = AuthService(application.firebaseAuth, application.db, application.dataStoreManager) // Crear instancia de AuthService
     return viewModel(
         factory = LoginScreenViewModelFactory(
             dataStoreManager,
@@ -149,9 +138,14 @@ fun createLoginViewModel(application: HomeApplication): LoginScreenViewModel {
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@SuppressLint("UnusedMaterialScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterialScaffoldPaddingParameter", "CoroutineCreationDuringComposition")
 @Composable
-fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, emisoraViewModel: EmisoraViewModel, usuarioPerfilViewModel: UsuarioPerfilViewModel,authService: AuthService) {
+fun HomeCasanareVista(navController: NavHostController,
+                      showScaffold: Boolean,
+                      emisoraViewModel: EmisoraViewModel,
+                      usuarioPerfilViewModel: UsuarioPerfilViewModel,
+                      authService: AuthService
+) {
     Log.d("NavController", "Home: $navController")
     var expanded by remember { mutableStateOf(false) }
     val dataStoreManager =
@@ -184,144 +178,93 @@ fun HomeCasanareVista(navController: NavHostController, showScaffold: Boolean, e
         //Destinos.Pantalla14, // Preferencias
     )
     val currentRoute = currentRoute(navController) ?: ""
-    /*val shouldShowScaffold = currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-     */
-    val rolUsuario = dataStoreManager.getRolUsuario().collectAsState(initial = Rol.USUARIO).value
-    when (rolUsuario) {
-        Rol.USUARIO -> {
-            UsuarioPerfilScreen(
-                navController = navController,
-                viewModel = usuarioPerfilViewModel // Ahora tienes acceso a usuarioPerfilViewModel
-            )
-        }
+    var destination by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
 
-        Rol.EMISORA -> {
-            EmisoraVista(
-                navController,
-                emisoraViewModel
-            )
-        }
-        Rol.NO_DEFINIDO -> {
-            CasanareLoginScreen(navController = navController, emisoraViewModel = emisoraViewModel)
+    suspend fun determineNavigationDestination(role: Rol?) {
+        destination = when (role) {
+            Rol.ADMINISTRADOR -> Destinos.Pantalla1.ruta
+            Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
+            Rol.EMISORA -> Destinos.EmisoraVista.ruta
+            null -> Destinos.CasanareLoginScreen.ruta
+            else -> Destinos.CasanareLoginScreen.ruta
         }
     }
 
-
-    var authState by remember { mutableStateOf<EstadoAutenticacion>(EstadoAutenticacion.Loading) }
-
-    LaunchedEffect(key1 = authState) {
-        when (authState) {
-            is EstadoAutenticacion.LoggedIn -> {
-                navController.navigate(Destinos.HomeCasanareVista.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            EstadoAutenticacion.LoggedOut -> {
-                navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                }
-            }
-
-            else -> {}
+    LaunchedEffect(key1 = Unit) {
+        val rolUsuario = dataStoreManager.getRol().firstOrNull()
+        determineNavigationDestination(rolUsuario)
+    }
+    LaunchedEffect(destination) {
+        if (destination != null) {
+            navController.navigate(destination!!)
         }
     }
 
+    if (!isLoading) {
 
-    if (showScaffold) {
-        Scaffold(
-            scaffoldState = scaffoldState,
-            bottomBar = {
-                if (shouldShowBottomBar(currentRoute)) {
-                    NavegacionInferior(
-                        navController,
-                        bottomNavDestinations,
-                        expanded,
-                        { expanded = it },
-                        innerPadding = PaddingValues(0.dp),
-                        dataStoreManager = dataStoreManager,
-                        authService = authService
-                    )
+        if (showScaffold) { // Mover el Scaffold aquí
+            Scaffold(
+                scaffoldState = scaffoldState,
+                bottomBar = {
+                    if (shouldShowBottomBar(currentRoute)) {
+                        NavegacionInferior(
+                            navController,
+                            bottomNavDestinations,
+                            expanded,
+                            { expanded = it },
+                            innerPadding = PaddingValues(0.dp),
+                            dataStoreManager = dataStoreManager,
+                            authService = authService
+                        )
+                    }
+                },
+                topBar = {
+                    if (shouldShowTopBar(currentRoute)) {
+                        TopBar(scope, scaffoldState, navController, allDestinations, viewModel)
+                    }
+                },
+                drawerContent = {
+                    if (shouldShowDrawer(currentRoute)) {
+                        Drawer(
+                            scope,
+                            scaffoldState,
+                            navController,
+                            items = allDestinations
+                        )
+                    }
                 }
-            },
-            topBar = {
-                if (shouldShowTopBar(currentRoute)) {
-                    TopBar(scope, scaffoldState, navController, allDestinations, viewModel)
+            ) { innerPadding ->
+                when (currentRoute) {
+                    Destinos.Pantalla1.ruta -> Inicio(innerPadding)
+                    Destinos.Pantalla2.ruta -> EmisorasScreen(innerPadding, navController)
+                    Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding, navController)
+                    Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
+                    Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
+                    Destinos.Pantalla6.ruta -> Programacion(innerPadding)
+                    Destinos.Pantalla7.ruta -> Programas(innerPadding)
+                    Destinos.Pantalla8.ruta -> Podcast(innerPadding)
+                    Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
+                    Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
+                    Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
+                    Destinos.Pantalla12.ruta -> Configuraciones(innerPadding, navController)
+                    Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
+                    Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
+                    //Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
+                    Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
+                    else -> {} // Manejar otras rutas o mostrar un mensaje de error
                 }
-            },
-            drawerContent = {
-                if (shouldShowDrawer(currentRoute)) {
-                    Drawer(
-                        scope,
-                        scaffoldState,
-                        navController,
-                        items = allDestinations
-                    )
-                }
-            }
-        ) { innerPadding ->
-            when (currentRoute) {
-                Destinos.Pantalla1.ruta -> Inicio(innerPadding)
-                Destinos.Pantalla2.ruta -> EmisorasScreen(innerPadding, navController)
-                Destinos.Pantalla3.ruta -> Noticias_Regionales(innerPadding, navController)
-                Destinos.Pantalla4.ruta -> Noticias_Nacionales(innerPadding)
-                Destinos.Pantalla5.ruta -> Noticias_Internacionales(innerPadding)
-                Destinos.Pantalla6.ruta -> Programacion(innerPadding)
-                Destinos.Pantalla7.ruta -> Programas(innerPadding)
-                Destinos.Pantalla8.ruta -> Podcast(innerPadding)
-                Destinos.Pantalla9.ruta -> Contactenos(innerPadding)
-                Destinos.Pantalla10.ruta -> Clasificados(innerPadding)
-                Destinos.Pantalla11.ruta -> Youtube_Casanare(innerPadding)
-                Destinos.Pantalla12.ruta -> Configuraciones(innerPadding)
-                Destinos.Pantalla13.ruta -> CerrarSesionButton(navController,authService, innerPadding)
-                //Destinos.Pantalla14.ruta -> Preferencias(innerPadding, navController)
-                Destinos.Pantalla15.ruta -> Se_Le_Tiene(innerPadding)
-                Destinos.Pantalla16.ruta -> VideosYoutubeView(navController, innerPadding)
-                Destinos.Pantalla17.ruta -> Mi_Zona(innerPadding)
-                else -> {} // Manejar otras rutas o mostrar un mensaje de error
             }
         }
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+
     }
+
 }
 
-fun shouldShowBottomBar(currentRoute: String): Boolean {
-    return currentRoute == Destinos.Pantalla1.ruta ||
-            currentRoute == Destinos.Pantalla2.ruta ||
-            currentRoute == Destinos.Pantalla8.ruta
-    //currentRoute == Destinos.Pantalla14.ruta
-}
-
-fun shouldShowTopBar(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-}
-
-fun shouldShowDrawer(currentRoute: String): Boolean {
-    return currentRoute != Destinos.PantallaPresentacion.ruta &&
-            currentRoute != Destinos.CasanareLoginScreen.ruta &&
-            currentRoute != Destinos.SplashScreen.ruta &&
-            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
-            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
-            currentRoute != PantallaFormulario.Docentes.ruta
-}
 
 @Composable
 fun NavegacionInferior(
@@ -334,7 +277,7 @@ fun NavegacionInferior(
     authService: AuthService // Agregar authService como parámetro
 ) {
     // Obtener el rol del usuario usando collectAsState
-    val rol by dataStoreManager.getRolUsuario().collectAsState(initial = Rol.NO_DEFINIDO) // Correcto: Usar getRolUsuario() y eliminar initial
+    val rol by dataStoreManager.getRol().collectAsState(initial = Rol.USUARIO) // Correcto: Usar getRolUsuario() y eliminar initial
     var cerrarSesion by remember { mutableStateOf(false) }
     NavigationBar(
         modifier = Modifier.fillMaxWidth(),
@@ -393,11 +336,14 @@ fun NavegacionInferior(
                     )
                 },
                 onClick = {
+                    Log.d("NavegacionInferior", "Valor de rol antes del when: $rol")
                     val rutaPerfil = when (rol) {
+
                         Rol.EMISORA -> Destinos.EmisoraVista.ruta
                         Rol.USUARIO -> Destinos.UsuarioPerfilScreen.ruta
-                        else -> Destinos.Pantalla1.ruta // O una ruta por defecto
+                        else -> Destinos.EmisoraVista.ruta // O una ruta por defecto
                     }
+                    Log.d("NavegacionInferior", "Rol: $rol, Ruta Perfil: $rutaPerfil")
                     navController.navigate(rutaPerfil)
                     onExpandedChange(false) // Cerrar el menú después de la navegación
                 }
@@ -426,17 +372,7 @@ fun NavegacionInferior(
         }
 
     }
-    if (cerrarSesion) {
-        LaunchedEffect(Unit) {
-            authService.cerrarSesion() // Llamar a cerrarSesion() de AuthService
-            navController.navigate(Destinos.CasanareLoginScreen.ruta) {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
-            }
-            cerrarSesion = false
-        }
-    }
+    cerrarSesion = false
 }
 
 @Composable
@@ -568,8 +504,8 @@ fun DrawerItem(
             .padding(6.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(
-                if (selected) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.surface
+                if (selected) MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.onSurface
             )
             .padding(8.dp)
             .clickable { onItemClick(item) },
@@ -579,7 +515,7 @@ fun DrawerItem(
         ) {
         if (item.icon != null) {
             val iconColor =
-                if (selected) MaterialTheme.colorScheme.primary else if (isSystemInDarkTheme()) Color.White else Color.Black
+                if (selected) MaterialTheme.colorScheme.primary else if (isSystemInDarkTheme()) Color.Black else Color.White
             Image(
                 painter = painterResource(id = item.icon),
                 contentDescription = item.title,
@@ -595,6 +531,50 @@ fun DrawerItem(
         )
 
     }
+}
+fun shouldShowBottomBar(currentRoute: String): Boolean {
+    return currentRoute == Destinos.Pantalla1.ruta ||
+            currentRoute == Destinos.Pantalla2.ruta ||
+            currentRoute == Destinos.Pantalla3.ruta ||
+            currentRoute == Destinos.Pantalla4.ruta ||
+            currentRoute == Destinos.Pantalla5.ruta ||
+            currentRoute == Destinos.Pantalla6.ruta ||
+            currentRoute == Destinos.Pantalla7.ruta ||
+            currentRoute == Destinos.Pantalla8.ruta ||
+            currentRoute == Destinos.Pantalla9.ruta ||
+            currentRoute == Destinos.Pantalla10.ruta ||
+            currentRoute == Destinos.Pantalla11.ruta ||
+            currentRoute == Destinos.Pantalla12.ruta ||
+            currentRoute == Destinos.Pantalla13.ruta ||
+            currentRoute == Destinos.Pantalla15.ruta ||
+            //currentRoute == Destinos.Pantalla16.ruta ||
+            currentRoute == Destinos.Pantalla17.ruta
+
+    //currentRoute == Destinos.Pantalla14.ruta
+}
+
+fun shouldShowTopBar(currentRoute: String): Boolean {
+    return currentRoute != Destinos.PantallaPresentacion.ruta &&
+            currentRoute != Destinos.CasanareLoginScreen.ruta &&
+            currentRoute != Destinos.SplashScreen.ruta &&
+            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
+            currentRoute != PantallaFormulario.Docentes.ruta
+}
+
+fun shouldShowDrawer(currentRoute: String): Boolean {
+    return currentRoute != Destinos.PantallaPresentacion.ruta &&
+            currentRoute != Destinos.CasanareLoginScreen.ruta &&
+            currentRoute != Destinos.SplashScreen.ruta &&
+            currentRoute != PantallaFormulario.SeleccionRol.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes1.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes2.ruta &&
+            currentRoute != PantallaFormulario.Estudiantes3.ruta &&
+            currentRoute != PantallaFormulario.Docentes.ruta
 }
 
 // Funcion para el resalte del la opcion seleccionada en el menu

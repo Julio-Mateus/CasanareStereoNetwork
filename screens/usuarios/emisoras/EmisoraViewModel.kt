@@ -32,10 +32,10 @@ import kotlinx.coroutines.tasks.await
 import kotlin.text.set
 
 class EmisoraViewModel(private val repository: EmisoraRepository, private val firebaseAuth: FirebaseAuth) : ViewModel() {
-    private val _perfilEmisora = MutableStateFlow(PerfilEmisora())
-    val perfilEmisora: StateFlow<PerfilEmisora> = _perfilEmisora.asStateFlow()
+    private val _perfilEmisora = MutableStateFlow<PerfilEmisora?>(null)
+    val perfilEmisora: StateFlow<PerfilEmisora?> = _perfilEmisora.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(true)
+    private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     // Nueva variable para guardar las emisoras cercanas
@@ -46,34 +46,60 @@ class EmisoraViewModel(private val repository: EmisoraRepository, private val fi
         cargarPerfilEmisora()
     }
 
-    fun actualizarPerfil(perfil: PerfilEmisora, navController: NavHostController) {
-        _perfilEmisora.value = perfil
-        guardarPerfilEmisora(perfil, navController)
-    }
-
-    fun actualizarImagenPerfil(imagenUri: Uri) {
+    fun guardarPerfil(perfil: PerfilEmisora, userId: String, navController: NavHostController) {
         viewModelScope.launch {
-            val userId = firebaseAuth.currentUser?.uid ?: return@launch
-            repository.actualizarImagenPerfil(imagenUri, userId)
-        }
-    }
-
-    private fun guardarPerfilEmisora(perfil: PerfilEmisora, navController: NavHostController) {
-        viewModelScope.launch {
-            val userId = firebaseAuth.currentUser?.uid ?: return@launch
-            repository.guardarPerfilEmisora(perfil, userId)
-            navController.navigate(Destinos.EmisoraVista.ruta)
-        }
-    }
-
-    fun cargarPerfilEmisora() {
-        viewModelScope.launch {
-            val userId = firebaseAuth.currentUser?.uid ?: return@launch
-            val perfil = repository.cargarPerfilEmisora(userId)
-            if (perfil != null) {
-                _perfilEmisora.value = perfil
+            _isLoading.value = true
+            try {
+                repository.guardarPerfilEmisora(perfil, userId)
+                _perfilEmisora.value = perfil // Actualizar el perfil en el ViewModel
+                navController.navigate(Destinos.EmisoraVista.ruta)
+            } catch (e: Exception) {
+                Log.e("EmisoraViewModel", "Error al guardar el perfil", e)
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
+        }
+    }
+
+    fun actualizarImagenPerfil(imagenUri: Uri, userId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.actualizarImagenPerfil(imagenUri, userId)
+                cargarPerfil(userId)
+            } catch (e: Exception) {
+                Log.e("EmisoraViewModel", "Error al actualizar la imagen de perfil", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun cargarPerfilEmisora() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val userId = firebaseAuth.currentUser?.uid ?: return@launch
+                cargarPerfil(userId)
+            } catch (e: Exception) {
+                Log.e("EmisoraViewModel", "Error al cargar el perfil", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun cargarPerfil(userId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val perfil = repository.cargarPerfilEmisora(userId)
+                _perfilEmisora.value = perfil
+            } catch (e: Exception) {
+                Log.e("EmisoraViewModel", "Error al cargar el perfil", e)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

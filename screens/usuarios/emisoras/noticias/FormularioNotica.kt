@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
@@ -59,16 +61,21 @@ import kotlin.toString
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostController, noticiaId: String? = null) {
+fun FormularioNoticia(
+    innerPadding: PaddingValues,
+    navController: NavHostController,
+    noticiaId: String? = null
+) {
     // Obtener la fábrica de ViewModel
     val factory =
         (LocalContext.current.applicationContext as HomeApplication).noticiaViewModelFactory
 
     // Obtener el ViewModel utilizando la fábrica
     val noticiaViewModel: NoticiaViewModel = viewModel(factory = factory)
-    val noticiaGuardada by noticiaViewModel.noticiaGuardada.collectAsState()
     val errorGuardandoNoticia by noticiaViewModel.errorGuardandoNoticia.collectAsState()
     val noticiaUiState by noticiaViewModel.noticiaUiState.collectAsState()
+    val noticiaCargada by noticiaViewModel.noticiaCargada.collectAsState()
+
 
     var titulo by remember { mutableStateOf("") }
     var imagenUri by remember { mutableStateOf<Uri?>(null) }
@@ -80,15 +87,22 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
     var ubicacion by remember { mutableStateOf("") }
     var etiqueta by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
     val categorias = listOf("Regional", "Nacional", "Internacional")
+    var expanded by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
 
+    val context = LocalContext.current
+    val firebaseAuth = FirebaseAuth.getInstance()
+    val currentUser = firebaseAuth.currentUser
+    val userId = currentUser?.uid ?: ""
+
+    LaunchedEffect(key1 = userId) {
+        noticiaViewModel.obtenerNoticias(userId)
+    }
     LaunchedEffect(key1 = noticiaId) {
         if (noticiaId != null) {
-            noticiaViewModel.obtenerNoticia(noticiaId)
+            noticiaViewModel.obtenerNoticia(noticiaId, userId) // Pasamos userId
             isEditing = true
         }
     }
@@ -132,12 +146,68 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                     IconButton(onClick = {
                         // Validación de datos (ejemplo: título no vacío)
                         if (titulo.isBlank()) {
-                            // Mostrar un mensaje de error al usuario
+                            Toast.makeText(context, "El título es obligatorio", Toast.LENGTH_SHORT)
+                                .show()
+                            return@IconButton
+                        }
+                        if (fuente.isBlank()) {
+                            Toast.makeText(context, "La fuente es obligatoria", Toast.LENGTH_SHORT)
+                                .show()
+                            return@IconButton
+                        }
+                        if (fechaPublicacion.isBlank()) {
                             Toast.makeText(
                                 context,
-                                "El título de la noticia no puede estar vacío",
+                                "La fecha de publicación es obligatoria",
                                 Toast.LENGTH_SHORT
                             ).show()
+                            return@IconButton
+                        }
+                        if (autor.isBlank()) {
+                            Toast.makeText(context, "El autor es obligatorio", Toast.LENGTH_SHORT)
+                                .show()
+                            return@IconButton
+                        }
+                        if (enlace.isBlank()) {
+                            Toast.makeText(context, "El enlace es obligatorio", Toast.LENGTH_SHORT)
+                                .show()
+                            return@IconButton
+                        }
+                        if (contenido.isBlank()) {
+                            Toast.makeText(
+                                context,
+                                "El contenido es obligatorio",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@IconButton
+                        }
+                        if (ubicacion.isBlank()) {
+                            Toast.makeText(
+                                context,
+                                "La ubicación es obligatoria",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@IconButton
+                        }
+                        if (etiqueta.isBlank()) {
+                            Toast.makeText(
+                                context,
+                                "La etiqueta es obligatoria",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@IconButton
+                        }
+                        if (categoria.isBlank()) {
+                            Toast.makeText(
+                                context,
+                                "La categoría es obligatoria",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@IconButton
+                        }
+                        if (imagenUri == null) {
+                            Toast.makeText(context, "La imagen es obligatoria", Toast.LENGTH_SHORT)
+                                .show()
                             return@IconButton
                         }
 
@@ -156,14 +226,13 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                             categoria = categoria
 
                         )
-                        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
                         if (isEditing) {
                             // Call actualizarNoticia when editing
-                            noticiaViewModel.actualizarNoticia(noticiaId!!, noticia)
+                            noticiaViewModel.actualizarNoticia(noticiaId!!, noticia, userId)
                         } else {
                             // Call guardarNoticia when creating a new noticia
-                            noticiaViewModel.guardarNoticia(noticia, userId)
+                            noticiaViewModel.guardarNoticia(noticia)
                         }
                     }) {
                         Icon(Icons.Filled.Save, contentDescription = "Guardar")
@@ -292,61 +361,51 @@ fun FormularioNoticia(innerPadding: PaddingValues, navController: NavHostControl
                     id = noticia?.id ?: "",
                     categoria = categoria
                 )
-                val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 if (isEditing) {
                     // Call actualizarNoticia when editing
-                    noticiaViewModel.actualizarNoticia(noticiaId!!, noticia)
+                    noticiaViewModel.actualizarNoticia(noticiaId!!, noticia, userId)
                 } else {
                     // Call guardarNoticia when creating a new noticia
-                    noticiaViewModel.guardarNoticia(noticia, userId)
+                    noticiaViewModel.guardarNoticia(noticia)
                 }
             }) {
                 Text("Guardar")
             }
-        }
 
+
+        }
+        LaunchedEffect(key1 = noticiaCargada) {
+            noticiaCargada?.let {
+                val noticiaJson = Gson().toJson(it)
+                navController.navigate(Destinos.VistaNoticia(noticiaJson).ruta + "?noticiaJson=$noticiaJson")
+                //noticiaViewModel.restablecerNoticiaGuardada() // Restablecer el estado
+            }
+        }
         // Utilizar un LaunchedEffect para la navegación
-        LaunchedEffect(key1 = noticiaGuardada) {
-            if (noticiaGuardada) {
-                // La noticia se guardó correctamente
-                // Restablecer el estado de noticiaGuardada
-                noticiaViewModel.restablecerNoticiaGuardada()
+        LaunchedEffect(key1 = noticiaUiState) {
+            when (val state = noticiaUiState) {
+                is NoticiaUiState.Success -> {
+                    Toast.makeText(
+                        context,
+                        if (isEditing) "Noticia actualizada correctamente" else "Noticia guardada correctamente",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
 
-                // Navegar a la vista de detalle
-                navController.navigate(Destinos.VistaNoticia.ruta)
+                is NoticiaUiState.Error -> {
+                    Toast.makeText(
+                        context,
+                        "Error al guardar la noticia: ${state.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    noticiaViewModel.restablecerErrorGuardandoNoticia() // Restablecer el estado
+                }
+
+                is NoticiaUiState.Loading -> {
+                    // Puedes agregar un indicador de carga aquí si lo deseas
+                }
             }
         }
-        // Handle error state
-        LaunchedEffect(key1 = errorGuardandoNoticia) {
-            if (errorGuardandoNoticia != null) {
-                Toast.makeText(
-                    context,
-                    "Error al guardar la noticia: $errorGuardandoNoticia", // Usar la variable errorGuardandoNoticia
-                    Toast.LENGTH_LONG
-                ).show()
-                noticiaViewModel.restablecerErrorGuardandoNoticia()
-            }
-        }
-        // Handle UI state changes
-        when (noticiaUiState) { // Usar la variable noticiaUiState
-            is NoticiaUiState.Loading -> {
-                // Show loading indicator
-            }
-
-            is NoticiaUiState.Success -> {
-                // Handle success state
-            }
-
-            is NoticiaUiState.Error -> {
-                // Show error message
-                Toast.makeText(
-                    context,
-                    "Error: ${(noticiaUiState as NoticiaUiState.Error).message}", // Usar la variable noticiaUiState
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
     }
 }
 

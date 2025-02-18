@@ -51,19 +51,20 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import com.jcmateus.casanarestereo.HomeApplication
 import com.jcmateus.casanarestereo.screens.home.Destinos
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
+import kotlinx.coroutines.tasks.await
+import kotlin.io.path.exists
 import kotlin.text.get
 import kotlin.text.set
 
-@androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VistaNoticia(
-    noticiaJson: String?,
+    noticiaJson: String? = null,
     innerPadding: PaddingValues,
     navController: NavController
 ) {
@@ -88,8 +89,9 @@ fun VistaNoticia(
         null // o maneja el error de otra manera
     }
 
-    val imageUri = navController.previousBackStackEntry?.savedStateHandle?.get<String>("imageUri")
+    //val imageUri = navController.previousBackStackEntry?.savedStateHandle?.get<String>("imageUri")
     var showDialog by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(key1 = errorEliminandoNoticia) {
         if (errorEliminandoNoticia != null) {
@@ -109,9 +111,15 @@ fun VistaNoticia(
             text = { Text("¿Estás seguro de que quieres eliminar esta noticia?") },
             confirmButton = {
                 TextButton(onClick = {
-                    noticia?.id?.let { noticiaViewModel.eliminarNoticia(it, userId) }
-                    showDialog = false
-                    navController.popBackStack()
+                    // Llamar a eliminarNoticia solo con noticia.id
+                    noticia?.id?.let {
+                        noticiaViewModel.eliminarNoticia(it, userId)
+                        showDialog = false
+                        navController.popBackStack()
+                    } ?: run {
+                        Toast.makeText(context, "Error al eliminar la noticia", Toast.LENGTH_LONG)
+                            .show()
+                    }
                 }) {
                     Text("Eliminar")
                 }
@@ -124,27 +132,7 @@ fun VistaNoticia(
         )
     }
 
-    Scaffold(
-        floatingActionButton = {
-            Row {
-                FloatingActionButton(
-                    onClick = {
-                        showDialog = true
-                    },
-                    modifier = Modifier.padding(end = 16.dp)
-                ) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
-                }
-                FloatingActionButton(onClick = {
-                    navController.currentBackStackEntry?.savedStateHandle?.set("noticia", noticia)
-                    navController.currentBackStackEntry?.savedStateHandle?.set("userId", userId)
-                    navController.navigate(Destinos.FormularioNoticia.ruta)
-                }) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Modificar")
-                }
-            }
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -152,6 +140,7 @@ fun VistaNoticia(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
             noticia?.let {
                 // Mostrar la imagen de la noticia con fondo y tamaño ajustado
                 Box(
@@ -161,19 +150,24 @@ fun VistaNoticia(
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color.LightGray)
                 ) {
-                    if (imageUri != null && Uri.parse(imageUri).isAbsolute) { // Comprueba si la URI es válida
+                    if (noticia?.imagenUriNoticia != null && Uri.parse(noticia.imagenUriNoticia).isAbsolute) { // Comprueba si la URI es válida
                         AsyncImage(
-                            model = imageUri,
+                            model = noticia.imagenUriNoticia,
                             contentDescription = "Imagen de la noticia",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     } else {
                         // Muestra un marcador de posición o un mensaje de error
-                        Box(modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.LightGray)) {
-                            Text("Imagen no disponible", modifier = Modifier.align(Alignment.Center))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.LightGray)
+                        ) {
+                            Text(
+                                "Imagen no disponible",
+                                modifier = Modifier.align(Alignment.Center)
+                            )
                         }
                     }
                 }
@@ -221,7 +215,6 @@ fun VistaNoticia(
 
                 // Mostrar otros campos de la noticia con estilos similares
                 Spacer(modifier = Modifier.height(16.dp))
-
                 // Autor
                 Text(
                     text = "Autor: ${it.autorNoticia}",
@@ -266,11 +259,38 @@ fun VistaNoticia(
                 Text("Noticia no encontrada")
             }
         }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    showDialog = true
+                },
+                modifier = Modifier.padding(end = 16.dp)
+            ) {
+                Icon(Icons.Filled.Delete, contentDescription = "Eliminar")
+            }
+            FloatingActionButton(onClick = {
+                noticia?.let {
+                    //navController.currentBackStackEntry?.savedStateHandle?.set("noticia", it)
+                    //navController.currentBackStackEntry?.savedStateHandle?.set("userId", userId)
+                    navController.navigate("${Destinos.FormularioNoticia.ruta}/${it.id}")
+                }
+            }) {
+                Icon(Icons.Filled.Edit, contentDescription = "Modificar")
+            }
+        }
     }
 }
 
 @Composable
 @Preview
 fun VistaNoticiaPreview() {
-    VistaNoticia(navController = NavHostController(LocalContext.current), innerPadding = PaddingValues(), noticiaJson = null)
+    VistaNoticia(
+        navController = NavHostController(LocalContext.current),
+        innerPadding = PaddingValues(),
+        noticiaJson = null
+    )
 }

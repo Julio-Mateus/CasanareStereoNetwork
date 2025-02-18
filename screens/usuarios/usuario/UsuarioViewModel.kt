@@ -10,8 +10,8 @@ import kotlinx.coroutines.launch
 
 class UsuarioViewModel(private val usuarioRepository: UsuarioRepository) : ViewModel() {
 
-    private val _usuario = MutableStateFlow<AuthService.User?>(null)
-    val usuario: StateFlow<AuthService.User?> = _usuario.asStateFlow()
+    private val _usuario = MutableStateFlow<Usuario?>(null)
+    val usuario: StateFlow<Usuario?> = _usuario.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -28,7 +28,7 @@ class UsuarioViewModel(private val usuarioRepository: UsuarioRepository) : ViewM
         }
     }
 
-    fun updateUsuario(usuario: AuthService.User) {
+    fun updateUsuario(usuario: Usuario) {
         viewModelScope.launch {
             _isLoading.value = true
             val success = usuarioRepository.updateUsuario(usuario)

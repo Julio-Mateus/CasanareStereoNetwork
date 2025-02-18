@@ -6,6 +6,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,11 +30,18 @@ fun CerrarSesionButton(
     innerPadding: PaddingValues
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val authState by authService.authState.collectAsState()
 
-    // Cerrar sesión y navegar a la pantalla de inicio de sesión
-    LaunchedEffect(key1 = Unit) { // Ejecutar solo una vez
+    // Cerrar sesión
+    LaunchedEffect(key1 = true) {
         coroutineScope.launch {
             authService.cerrarSesion()
+        }
+    }
+
+    // Observar el estado de autenticación para navegar
+    LaunchedEffect(key1 = authState) {
+        if (authState is EstadoAutenticacion.LoggedOut) {
             navController.navigate(Destinos.CasanareLoginScreen.ruta) {
                 popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
             }

@@ -5,7 +5,9 @@ package com.jcmateus.casanarestereo
 //import com.jcmateus.casanarestereo.navigation.NavegacionCasanare
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -27,13 +29,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,21 +49,17 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
-import com.google.firebase.Firebase
-import com.google.firebase.appcheck.BuildConfig
-import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.initialize
 import com.jcmateus.casanarestereo.navigation.NavigationHost
 import com.jcmateus.casanarestereo.screens.formulario.FormularioViewModel
 import com.jcmateus.casanarestereo.screens.formulario.PantallaFormulario
@@ -70,8 +69,12 @@ import com.jcmateus.casanarestereo.screens.login.AuthService
 import com.jcmateus.casanarestereo.screens.login.EstadoAutenticacion
 import com.jcmateus.casanarestereo.screens.login.LoginScreenViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.usuario.MyLocationManager
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioPerfilViewModel
+import com.jcmateus.casanarestereo.screens.usuarios.usuario.UsuarioRepository
 import com.jcmateus.casanarestereo.ui.theme.CasanareStereoTheme
 import kotlinx.coroutines.launch
+import kotlin.text.append
+import kotlin.text.firstOrNull
 
 class MainActivity : ComponentActivity() {
     private lateinit var myLocationManager: MyLocationManager
@@ -79,15 +82,14 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Configurar Firebase App Check
-        configureFirebaseAppCheck()
         val navController = (application as HomeApplication).navController
         myLocationManager = MyLocationManager(this)
 
         setContent {
-            CasanareStereoTheme {
-                navController.setViewModelStore(ViewModelStore())
-                MainScreen(navController)
+            CasanareStereoTheme { // Aquí envolvemos el contenido con nuestro tema
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    MainScreen(navController)
+                }
             }
         }
         lifecycleScope.launch {
@@ -98,7 +100,6 @@ class MainActivity : ComponentActivity() {
                     (application as HomeApplication).emisoraViewModel.getEmisorasCercanas(location)
                 } else {
                     Log.e("MainActivity", "No se pudo obtener la ubicación")
-                    // Puedes mostrar un mensaje al usuario o usar una ubicación por defecto
                 }
             }
         }
@@ -113,7 +114,6 @@ class MainActivity : ComponentActivity() {
                 android.Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // Los permisos no están concedidos, solicitarlos
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(
@@ -126,19 +126,6 @@ class MainActivity : ComponentActivity() {
         }
         return true
     }
-    private fun configureFirebaseAppCheck() {
-        Firebase.initialize(this)
-        val firebaseAppCheck = FirebaseAppCheck.getInstance()
-        if (BuildConfig.DEBUG) {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance() // Usar directamente DebugAppCheckProviderFactory.getInstance()
-            )
-        } else {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            )
-        }
-    }
 }
 
 @SuppressLint("ViewModelConstructorInComposable")
@@ -146,27 +133,29 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(navController: NavHostController) {
     val application = LocalContext.current.applicationContext as HomeApplication
-    val authService = AuthService(application.firebaseAuth, application.dataStoreManager) // Acceder a firebaseAuth desde HomeApplication
+    val authService = AuthService(application.firebaseAuth, application.db, application.dataStoreManager)
     val loginViewModel = createLoginViewModel(application)
     val emisoraViewModel = application.emisoraViewModel
     val podcastViewModel = application.podcastViewModel
     val usuarioViewModel = application.usuarioViewModel
-    val usuarioPerfilViewModel = application.usuarioPerfilViewModel
+    val emisoraRepository = application.emisoraRepository
+    // Create UsuarioPerfilViewModel here
+    val usuarioRepository = UsuarioRepository(application.db)
+    val usuarioPerfilViewModel = UsuarioPerfilViewModel(usuarioRepository, authService, application.db, application.storage)
 
-    CasanareStereoTheme {
-        NavigationHost(
-            navController,
-            PaddingValues(),
-            loginViewModel,
-            formularioViewModel = FormularioViewModel(),
-            authService,
-            emisoraViewModel,
-            podcastViewModel,
-            usuarioViewModel,
-            dataStoreManager = application.dataStoreManager,
-            usuarioPerfilViewModel
-        )
-    }
+    NavigationHost(
+        navController,
+        PaddingValues(),
+        loginViewModel, // Pasar loginViewModel
+        formularioViewModel = FormularioViewModel(),
+        authService,
+        emisoraViewModel,
+        podcastViewModel,
+        usuarioViewModel,
+        dataStoreManager = application.dataStoreManager,
+        usuarioPerfilViewModel,
+        emisoraRepository
+    )
 }
 
 @Composable
@@ -201,7 +190,7 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 text = "BIENVENIDO A:",
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 43.sp,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.background,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -217,13 +206,13 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 style = MaterialTheme.typography.bodyLarge,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.background
             )
             Text(
                 text = "DONDE LATE EL CORAZÓN DEL LLANO",
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.background
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -236,11 +225,11 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     val currentUser = loginViewModel.authState.value
                     if (currentUser is EstadoAutenticacion.LoggedIn) {
                         // Accede a la información del usuario (correo o nombre)
-                        val userEmail = currentUser.user?.email ?: ""
+
 
                         // Actualiza el estado para mostrar el Snackbar
                         showAnimation = true
-                        animationMessage = "Bienvenido, $userEmail"
+                        animationMessage = "Bienvenido"
                     }
                 },
                 modifier = Modifier
@@ -249,17 +238,19 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     .height(56.dp),
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
             {
                 Text(
                     "Iniciar Sesión",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
+
             // Mostrar la animación si showAnimation es true
+
             AnimatedVisibility(visible = showAnimation) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -268,8 +259,9 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
-            OutlinedButton(
+            Button(
                 onClick = {
                     navController.navigate(PantallaFormulario.SeleccionRol.ruta)
                 },
@@ -278,25 +270,26 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                     .padding(horizontal = 16.dp)
                     .height(56.dp),
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onBackground
+                colors = ButtonDefaults.buttonColors(
+                    contentColor = MaterialTheme.colorScheme.scrim
                 )
             ) {
                 Text(
-                    "En otro momento",
-                    color = MaterialTheme.colorScheme.onPrimary
+                    "Realizar Encuesta",
+                    color = MaterialTheme.colorScheme.background
                 )
 
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+
             Row(
                 modifier = Modifier.padding(15.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "¿No tienes cuenta?",
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = MaterialTheme.colorScheme.background,
                 )
                 Text(
                     "Registrate",
@@ -310,6 +303,8 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 )
             }
         }
+
+
         Text(
             text = "Beneficios de tener una cuenta",
             color = Color.White,
@@ -317,6 +312,49 @@ fun PantallaPresentacion(navController: NavHostController, loginViewModel: Login
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 50.dp)
 
+        )
+             /*
+            Spacer(modifier = Modifier.weight(1f)) // Empuja el texto hacia abajo
+            PoliticasDePrivacidad(navController = navController
+              */
+        }
+    }
+
+@Composable
+fun PoliticasDePrivacidad(navController: NavHostController) {
+    val context = LocalContext.current
+    val annotatedText = buildAnnotatedString {
+        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.background)) {
+            append("Al continuar, aceptas nuestras ")
+        }
+        pushStringAnnotation(tag = "politicas", annotation = "https://sites.google.com/cstar.com.co/casanareestereonetwork/pol%C3%ADticas-de-privacidad")
+        withStyle(
+            style = SpanStyle(
+                color = MaterialTheme.colorScheme.error,
+                textDecoration = TextDecoration.Underline
+            )
+        ) {
+            append("Políticas de Privacidad")
+        }
+        pop()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        ClickableText(
+            text = annotatedText,
+            onClick = { offset ->
+                annotatedText.getStringAnnotations(tag = "politicas", start = offset, end = offset)
+                    .firstOrNull()?.let { annotation ->
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
+                        context.startActivity(intent)
+                    }
+            },
+            style = MaterialTheme.typography.bodySmall.copy(textAlign = TextAlign.Center)
         )
     }
 }
