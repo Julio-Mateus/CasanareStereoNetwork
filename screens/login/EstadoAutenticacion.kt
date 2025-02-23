@@ -8,16 +8,9 @@ import kotlinx.parcelize.Parcelize
 
 sealed class EstadoAutenticacion : Parcelable {
     @Parcelize
-    data class LoggedIn(val rol: Rol?) : EstadoAutenticacion() {
+    data class LoggedIn(val rol: Rol) : EstadoAutenticacion() {
         init {
             Log.d("EstadoAutenticacion", "Estado: LoggedIn, Rol: $rol")
-        }
-    }
-
-    @Parcelize
-    data class LoggedInWithPendingRol(val user: FirebaseUser?) : EstadoAutenticacion() {
-        init {
-            Log.d("EstadoAutenticacion", "Estado: LoggedInWithPendingRol, User: ${user?.uid}")
         }
     }
 

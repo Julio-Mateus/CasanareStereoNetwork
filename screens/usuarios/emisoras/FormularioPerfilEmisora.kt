@@ -172,7 +172,7 @@ fun FormularioPerfilEmisora(
                         // Guardar los cambios utilizando la función actualizarPerfil del ViewModel
                         emisoraViewModel.guardarPerfil(
                             PerfilEmisora(
-                                id = userId,
+                                emisoraId = userId,
                                 nombre = nombreEmisora, // Asignar nombreEmisora al campo nombre
                                 descripcion = descripcionEmisora, // Asignar descripcionEmisora al campo descripcion
                                 imagenPerfilUri = imagenPerfilUri?.toString()

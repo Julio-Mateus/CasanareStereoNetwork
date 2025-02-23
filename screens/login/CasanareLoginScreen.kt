@@ -108,10 +108,12 @@ import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraRepository
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModel
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraViewModelFactory
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.comparisons.then
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -127,11 +129,12 @@ fun CasanareLoginScreen(
     val viewModel = loginViewModel
     var isUsuarioChecked by remember { mutableStateOf(false) }
     var isEmisoraChecked by remember { mutableStateOf(false) }
+
     var isUsuarioCheckedBeforeEmisora by remember { mutableStateOf(false) }
     var selectedRol by remember { mutableStateOf<Rol?>(null) } // Rol seleccionado
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle(initialValue = false)
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle(initialValue = null)
-    var CheckTerminos by remember { mutableStateOf(false) }
+    var checkTerminos by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() } // Crear SnackbarHostState
     // val authState by viewModel.authState.collectAsState()
     val successMessage by viewModel.successMessage.collectAsStateWithLifecycle(initialValue = null)
@@ -144,7 +147,7 @@ fun CasanareLoginScreen(
     var showTermsDialog by remember { mutableStateOf(false) }
     var showTermsDialogCreateAccount by remember { mutableStateOf(false) } // Para términos y condiciones de crear cuenta
     var googleSignInRequested by remember { mutableStateOf(false) }
-    val token = "792234410149-82bpdkviurrvrr69g49irmemrafdam82.apps.googleusercontent.com"
+    val token = "792234410149-33q9p90prlr9migq7ssdmjanlklc7285.apps.googleusercontent.com"
     val context = LocalContext.current
     var rolUsuario by remember { mutableStateOf<Rol?>(null) }
     LaunchedEffect(key1 = Unit) {
@@ -221,7 +224,7 @@ fun CasanareLoginScreen(
     }
 
     // Lógica para asegurar que solo se pueda seleccionar un rol a la vez
-     LaunchedEffect(key1 = isUsuarioChecked, key2 = isEmisoraChecked) {
+    LaunchedEffect(key1 = isUsuarioChecked, key2 = isEmisoraChecked) {
         if (isUsuarioChecked && isEmisoraChecked) {
             // Si ambos están seleccionados, deseleccionar el que se seleccionó primero
             if (isUsuarioChecked) {
@@ -341,91 +344,50 @@ fun CasanareLoginScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                var CheckTerminos by remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
                         .padding(15.dp)
-                        //.absoluteOffset(x = 0.dp, y = (-403).dp)
                         .clip(RoundedCornerShape(15.dp))
                         .size(40.dp)
                         .background(MaterialTheme.colorScheme.surfaceBright)
                         .clickable {
-                            Log.d(
-                                "CasanareLoginScreen",
-                                "Button: Botón de Google presionado"
-                            ) // Log: Botón presionado
-                            if (showLoginForm.value) { // Solo mostrar el mensaje al crear una cuenta
-                                if (!CheckTerminos) {
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: Términos no aceptados, mostrando Snackbar"
-                                    ) // Log: Términos no aceptados
-                                    // Mostrar un Snackbar
-                                    coroutineScope.launch { // Usar coroutineScope aquí
+                            Log.d("CasanareLoginScreen", "Button: Botón de Google presionado")
+                            if (showLoginForm.value) {
+                                // Si es creación de cuenta, verificar términos y rol
+                                if (!checkTerminos) {
+                                    coroutineScope.launch {
                                         snackbarHostState.showSnackbar(
                                             message = "Debes aceptar los términos y condiciones",
                                             duration = SnackbarDuration.Short
                                         )
                                     }
+                                } else if (selectedRol == null) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Debes seleccionar un rol",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
                                 } else {
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: Términos aceptados, iniciando sesión con Google"
-                                    ) // Log: Términos aceptados
-                                    googleSignInRequested =
-                                        true // Indicar que se ha solicitado el inicio de sesión con Google
+                                    // Si todo está bien, iniciar el proceso de Google Sign-In
                                     val opciones = GoogleSignInOptions
                                         .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                                         .requestIdToken(token)
                                         .requestEmail()
                                         .build()
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: Opciones de GoogleSignInOptions creadas"
-                                    ) // Log: Opciones creadas
                                     val googleSignInClient = getClient(context, opciones)
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: Cliente de GoogleSignInClient creado"
-                                    ) // Log: Cliente creado
                                     launcher.launch(googleSignInClient.signInIntent)
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: Intent de Google lanzado"
-                                    ) // Log: Intent lanzado
-                                    googleSignInRequested = false // Restablecer la solicitud
-                                    Log.d(
-                                        "CasanareLoginScreen",
-                                        "Button: googleSignInRequested restablecido a false"
-                                    ) // Log: googleSignInRequested restablecido
                                 }
                             } else {
-                                Log.d(
-                                    "CasanareLoginScreen",
-                                    "Button: Iniciando sesión con Google sin mostrar el mensaje"
-                                ) // Log: Inicio de sesión normal
-                                // Iniciar sesión con Google sin mostrar el mensaje (inicio de sesión normal)
+                                // Si es inicio de sesión, iniciar el proceso de Google Sign-In directamente
                                 val opciones = GoogleSignInOptions
                                     .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                                     .requestIdToken(token)
                                     .requestEmail()
                                     .build()
-                                Log.d(
-                                    "CasanareLoginScreen",
-                                    "Button: Opciones de GoogleSignInOptions creadas"
-                                ) // Log: Opciones creadas
                                 val googleSignInClient = getClient(context, opciones)
-                                Log.d(
-                                    "CasanareLoginScreen",
-                                    "Button: Cliente de GoogleSignInClient creado"
-                                ) // Log: Cliente creado
                                 launcher.launch(googleSignInClient.signInIntent)
-                                Log.d(
-                                    "CasanareLoginScreen",
-                                    "Button: Intent de Google lanzado"
-                                ) // Log: Intent lanzado
-                                googleSignInRequested = false // Restablecer la solicitud
                             }
                         },
                     verticalAlignment = Alignment.CenterVertically,
@@ -447,13 +409,13 @@ fun CasanareLoginScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 // ----> Lógica de selección de rol <----
-                var rol by remember { mutableStateOf(Rol.USUARIO) }
-                if (showLoginForm.value) {
+                if (showLoginForm.value) { // Mostrar solo si es creación de cuenta
                     Row {
                         Checkbox(
                             checked = isUsuarioChecked,
                             onCheckedChange = {
                                 isUsuarioChecked = it
+                                isEmisoraChecked = false
                                 selectedRol = if (it) Rol.USUARIO else null
                             },
                             colors = CheckboxDefaults.colors(
@@ -467,6 +429,7 @@ fun CasanareLoginScreen(
                             checked = isEmisoraChecked,
                             onCheckedChange = {
                                 isEmisoraChecked = it
+                                isUsuarioChecked = false
                                 selectedRol = if (it) Rol.EMISORA else null
                             },
                             colors = CheckboxDefaults.colors(
@@ -487,7 +450,13 @@ fun CasanareLoginScreen(
                     UserForm(
                         isCreateAccount = true,
                         viewModel = viewModel,
-                        selectedRol = selectedRol
+                        selectedRol = selectedRol,
+                        snackbarHostState = snackbarHostState,
+                        coroutineScope = scope,
+                        checkTerminos = checkTerminos,
+                        onCheckTerminosChange = { checkTerminos = it },
+                        showTermsDialog = showTermsDialog,
+                        onShowTermsDialogChange = { showTermsDialog = it }
                     )
                 } else {
                     Text(
@@ -499,38 +468,197 @@ fun CasanareLoginScreen(
                     UserForm(
                         isCreateAccount = false,
                         viewModel = viewModel,
-                        selectedRol = selectedRol
+                        selectedRol = selectedRol,
+                        snackbarHostState = snackbarHostState,
+                        coroutineScope = scope,
+                        checkTerminos = checkTerminos,
+                        onCheckTerminosChange = { checkTerminos = it },
+                        showTermsDialog = showTermsDialog,
+                        onShowTermsDialogChange = { showTermsDialog = it }
                     )
                 }
             }
+            Spacer(modifier = Modifier.padding(10.dp))
+            Row(
+                modifier = Modifier.padding(top = 700.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                val text1 = if (
+                    showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
+                val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
+                Text(
+                    text = text1, color = MaterialTheme.colorScheme.surfaceBright,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Light,
+                )
+                Text(text = text2,
+                    modifier = Modifier
+                        .clickable { showLoginForm.value = !showLoginForm.value }
+                        .padding(start = 15.dp),
+                    color = MaterialTheme.colorScheme.error
+
+                )
+            }
+        }
+        // Mostrar SnackbarHost
+        SnackbarHost(hostState = snackbarHostState)
+    }
+
+}
+
+@SuppressLint("UnrememberedMutableState")
+@Composable
+fun UserForm(
+    isCreateAccount: Boolean = false,
+    viewModel: LoginScreenViewModel,
+    selectedRol: Rol?,
+    snackbarHostState: SnackbarHostState,
+    coroutineScope: CoroutineScope,
+    checkTerminos: Boolean,
+    onCheckTerminosChange: (Boolean) -> Unit,
+    showTermsDialog: Boolean,
+    onShowTermsDialogChange: (Boolean) -> Unit
+) {
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+
+    val valido = if (isCreateAccount) {
+        email.trim().isNotEmpty() && password.trim()
+            .isNotEmpty() && checkTerminos && selectedRol != null
+    } else {
+        email.trim().isNotEmpty() && password.trim().isNotEmpty()
+    }
+    val buttonEnabled = if (isCreateAccount) {
+        valido && selectedRol != null && checkTerminos
+    } else {
+        valido
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.wrapContentHeight()
+    ) {
+        EmailInput(
+            emailState = remember { mutableStateOf(email) },
+            labelId = "Correo",
+            onValueChange = { email = it },
+            imeAction = if (isCreateAccount) ImeAction.Next else ImeAction.Done
+        )
+        PasswordInput(
+            passwordState = remember { mutableStateOf(password) },
+            labelId = "Contraseña",
+            passwordVisible = remember { mutableStateOf(passwordVisible) },
+            onValueChange = { password = it },
+            imeAction = if (isCreateAccount) ImeAction.Done else ImeAction.Done
+        )
+
+        if (isCreateAccount) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = checkTerminos,
+                    onCheckedChange = {
+                        onCheckTerminosChange(it)
+                    },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primaryContainer,
+                        uncheckedColor = MaterialTheme.colorScheme.surfaceBright
+                    )
+                )
+                Text(
+                    text = "Acepto los términos y condiciones",
+                    color = MaterialTheme.colorScheme.surfaceBright,
+                    modifier = Modifier.clickable {
+                        onShowTermsDialogChange(true)
+                    }
+                )
+            }
+            if (showTermsDialog) {
+                AlertDialog(
+                    onDismissRequest = { onShowTermsDialogChange(false) },
+                    title = { Text("Términos y Condiciones") },
+                    text = {
+                        Text(
+                            "Aquí van los términos y condiciones. " +
+                                    "Puedes agregar un texto largo o incluso cargar los términos desde un archivo."
+                        )
+                    },
+                    confirmButton = {
+                        Button(onClick = { onShowTermsDialogChange(false) }) {
+                            Text("Aceptar")
+                        }
+                    }
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.padding(10.dp))
-        Row(
-            modifier = Modifier.padding(top = 700.dp),
-            horizontalArrangement = Arrangement.Center
+        Button(
+            onClick = {
+                if (isCreateAccount) {
+                    if (!checkTerminos) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Debes aceptar los términos y condiciones",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        return@Button
+                    }
+                    if (selectedRol == null) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Debes seleccionar un rol",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                        return@Button
+                    }
+                    // Si llegamos aquí, selectedRol no es null
+                    selectedRol?.let {
+                        viewModel.crearUsuarioConCorreoYContrasena(
+                            email.trim(),
+                            password.trim(),
+                            checkTerminos,
+                            it // Usamos it (que es el Rol no nulo)
+                        )
+                    }
+                } else {
+                    if (valido) {
+                        viewModel.iniciarSesionConCorreoYContrasena(
+                            email.trim(),
+                            password.trim()
+                        )
+                        keyboardController?.hide()
+                    }
+                }
+            },
+            enabled = buttonEnabled,
+            modifier = Modifier
+                .padding(14.dp)
+                .height(54.dp)
+                .fillMaxWidth()
+                .then(
+                    if (valido) Modifier.shadow(
+                        elevation = 2.dp,
+                        shape = MaterialTheme.shapes.medium
+                    ) else Modifier
+                )
         ) {
-            val text1 = if (
-                showLoginForm.value) "Ya tienes cuenta?" else "No tienes cuenta?"
-            val text2 = if (showLoginForm.value) "Inicia sesión" else "Registrate"
             Text(
-                text = text1, color = MaterialTheme.colorScheme.surfaceBright,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Light,
-            )
-            Text(text = text2,
-                modifier = Modifier
-                    .clickable { showLoginForm.value = !showLoginForm.value }
-                    .padding(start = 15.dp),
-                color = MaterialTheme.colorScheme.error
-
+                text = if (isCreateAccount) "Crear cuenta" else "Iniciar sesión",
+                color = MaterialTheme.colorScheme.surfaceBright,
+                fontSize = 18.sp
             )
         }
     }
-    // Mostrar SnackbarHost
-    SnackbarHost(hostState = snackbarHostState)
 }
-
 
 @Composable
 fun ShowFloatingMessage(message: String, duration: SnackbarDuration = SnackbarDuration.Short) {
@@ -562,138 +690,6 @@ fun ShowSnackbar(snackbarHostState: SnackbarHostState, message: String, action: 
         }
     }
 }
-
-@SuppressLint("UnrememberedMutableState")
-@Composable
-fun UserForm(
-    isCreateAccount: Boolean = false, // Indica si es para crear cuenta o iniciar sesión
-    viewModel: LoginScreenViewModel, // Inyectamos el ViewModel
-    selectedRol: Rol? // Rol seleccionado por el usuario
-) {
-    var email by rememberSaveable { mutableStateOf("") } // Estado para el correo electrónico
-    var password by rememberSaveable { mutableStateOf("") } // Estado para la contraseña
-    var passwordVisible by rememberSaveable { mutableStateOf(false) } // Estado para la visibilidad de la contraseña
-    var checkTerminos by rememberSaveable { mutableStateOf(false) } // Estado para el checkbox de términos y condiciones
-    val keyboardController = LocalSoftwareKeyboardController.current // Controlador del teclado
-    val context = LocalContext.current // Contexto actual
-
-    // Lógica para determinar si el formulario es válido
-    val valido = if (isCreateAccount) {
-        // Si es crear cuenta, depende de CheckTerminos
-        email.trim().isNotEmpty() && password.trim()
-            .isNotEmpty() && checkTerminos && selectedRol != null
-    } else {
-        // Si es iniciar sesión, solo depende de email y password
-        email.trim().isNotEmpty() && password.trim().isNotEmpty()
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.wrapContentHeight()
-    ) {
-
-        EmailInput(
-            emailState = remember { mutableStateOf(email) },
-            labelId = "Correo",
-            onValueChange = {
-                email = it
-            }) // Campo de entrada para el correo
-        PasswordInput(
-            passwordState = remember { mutableStateOf(password) },
-            labelId = "Contraseña",
-            passwordVisible = remember { mutableStateOf(passwordVisible) },
-            onValueChange = { password = it },
-            imeAction = if (isCreateAccount) ImeAction.Next else ImeAction.Done // Acción del teclado
-        ) // Campo de entrada para la contraseña
-
-        // Mostrar los términos y condiciones solo si es crear cuenta
-        if (isCreateAccount) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = checkTerminos,
-                    onCheckedChange = { checkTerminos = it },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primaryContainer, // <- Usar color primario del tema
-                        uncheckedColor = MaterialTheme.colorScheme.surfaceBright, //<- Usar color de texto sobre superficie
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                val annotatedString = buildAnnotatedString {
-                    withStyle(style = SpanStyle(textDecoration = TextDecoration.Underline)) {
-                        append("términos y condiciones")
-                    }
-                }
-                Text(
-                    text = annotatedString,
-                    color = MaterialTheme.colorScheme.surfaceBright,
-                    modifier = Modifier.clickable {
-                        // Abrir la página de términos y condiciones
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://casanarestero.blogspot.com/p/terminos-y-condiciones-de-politica-y.html")
-                        )
-                        context.startActivity(intent)
-                    }
-                )
-            }
-        }
-
-        Button(
-            onClick = {
-                if (valido) {
-                    if (isCreateAccount) {
-                        // Llamar a la función para crear usuario en el ViewModel
-                        viewModel.crearUsuarioConCorreoYContrasena(
-                            email.trim(),
-                            password.trim(),
-                            checkTerminos,
-                            selectedRol
-                        )
-                    } else {
-                        // Llamar a la función para iniciar sesión en el ViewModel
-                        viewModel.iniciarSesionConCorreoYContrasena(
-                            email.trim(),
-                            password.trim()
-                        )
-                    }
-                    keyboardController?.hide() // Ocultar el teclado
-                }
-            },
-            enabled = valido, // Habilitar el botón solo si los campos son válidos
-            modifier = Modifier
-                .padding(14.dp)
-                .height(54.dp)
-                .fillMaxWidth()
-                .then(
-                    if (valido) Modifier.shadow(
-                        elevation = 2.dp,
-                        shape = MaterialTheme.shapes.medium
-                    ) else Modifier
-                ), // Añadir sombra si está habilitado,
-            shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (valido) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surfaceVariant, // Cambiar color si está deshabilitado
-                contentColor = if (valido) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant // Cambiar color si está deshabilitado
-            )
-        ) {
-            Text(
-                text = if (isCreateAccount) "Crear Cuenta" else "Iniciar Sesión",
-                modifier = Modifier
-                    .padding(8.dp),
-                color = if (valido) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
-                fontSize = 17.sp, // Cambiar color si está deshabilitado
-                // ... otros estilos
-
-            )
-        }
-    }
-}
-
 
 
 @Composable

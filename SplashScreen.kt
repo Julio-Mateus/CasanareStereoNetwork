@@ -75,7 +75,6 @@ import kotlinx.coroutines.flow.first
 fun SplashScreen(
     navController: NavHostController,
     authService: AuthService,
-    loginViewModel: LoginScreenViewModel,
     dataStoreManager: DataStoreManager,
     emisoraRepository: EmisoraRepository
 ) {
@@ -112,19 +111,6 @@ fun SplashScreen(
                     val destination = determineDestination(
                         isFirstTime,
                         role,
-                        authService,
-                        emisoraRepository,
-                        dataStoreManager
-                    )
-                    Log.d("SplashScreen", "Destination: $destination")
-                    navigateTo(navController, destination)
-                }
-
-                is EstadoAutenticacion.LoggedInWithPendingRol -> {
-                    val rolFromDataStore = dataStoreManager.getRol().first()
-                    val destination = determineDestination(
-                        isFirstTime,
-                        rolFromDataStore,
                         authService,
                         emisoraRepository,
                         dataStoreManager

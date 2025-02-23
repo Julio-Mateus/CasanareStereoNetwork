@@ -1,7 +1,7 @@
 package com.jcmateus.casanarestereo.screens.usuarios.emisoras
 
 data class PerfilEmisora(
-    val id: String = "",
+    val emisoraId: String = "",
     val rol: String = "",
     val nombre: String = "",
     val email: String = "",

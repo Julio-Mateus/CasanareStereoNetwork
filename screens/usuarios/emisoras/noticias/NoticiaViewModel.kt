@@ -8,11 +8,13 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jcmateus.casanarestereo.screens.login.AuthService
+import com.jcmateus.casanarestereo.screens.login.DataStoreManager
 import com.jcmateus.casanarestereo.screens.login.Rol
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.contenido.Contenido
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -22,7 +24,8 @@ class NoticiaViewModel(
     private val repository: NoticiaRepository,
     private val firebaseAuth: FirebaseAuth,
     private val db: FirebaseFirestore,
-    private val authService: AuthService
+    private val authService: AuthService,
+    private val dataStoreManager: DataStoreManager
 ) : ViewModel() {
 
 
@@ -32,42 +35,34 @@ class NoticiaViewModel(
     private val _errorGuardandoNoticia = MutableStateFlow<String?>(null)
     val errorGuardandoNoticia: StateFlow<String?> = _errorGuardandoNoticia.asStateFlow()
 
-    // StateFlow for the noticia image URI
     private val _imagenNoticiaUri = MutableStateFlow<Uri?>(null)
     val imagenNoticiaUri: StateFlow<Uri?> = _imagenNoticiaUri.asStateFlow()
 
-    // StateFlow for the list of noticias
     private val _listaNoticias = MutableStateFlow<List<Contenido.Noticia>>(emptyList())
     val listaNoticias: StateFlow<List<Contenido.Noticia>> = _listaNoticias.asStateFlow()
 
     private val _noticiaCargada = MutableStateFlow<Contenido.Noticia?>(null)
     val noticiaCargada: StateFlow<Contenido.Noticia?> = _noticiaCargada.asStateFlow()
 
-    // StateFlow for errorEliminandoNoticia
     private val _errorEliminandoNoticia = MutableStateFlow<String?>(null)
-    val errorEliminandoNoticia: StateFlow<String?> = _errorEliminandoNoticia
+    val errorEliminandoNoticia: StateFlow<String?> = _errorEliminandoNoticia.asStateFlow()
 
-    // StateFlow for the current noticia
     private val _noticia = MutableStateFlow<Contenido.Noticia?>(null)
     val noticia: StateFlow<Contenido.Noticia?> = _noticia.asStateFlow()
 
-    // StateFlow for the list of noticias filtered by category
     private val _listaNoticiasFiltradas = MutableStateFlow<List<Contenido.Noticia>>(emptyList())
     val listaNoticiasFiltradas: StateFlow<List<Contenido.Noticia>> =
         _listaNoticiasFiltradas.asStateFlow()
 
-    // StateFlow for the list of noticias internacionales
     private val _listaNoticiasInternacionales =
         MutableStateFlow<List<Contenido.Noticia>>(emptyList())
     val listaNoticiasInternacionales: StateFlow<List<Contenido.Noticia>> =
         _listaNoticiasInternacionales.asStateFlow()
 
-    // StateFlow for the list of noticias nacionales
     private val _listaNoticiasNacionales = MutableStateFlow<List<Contenido.Noticia>>(emptyList())
     val listaNoticiasNacionales: StateFlow<List<Contenido.Noticia>> =
         _listaNoticiasNacionales.asStateFlow()
 
-    // StateFlow for the list of noticias regionales
     private val _listaNoticiasRegionales = MutableStateFlow<List<Contenido.Noticia>>(emptyList())
     val listaNoticiasRegionales: StateFlow<List<Contenido.Noticia>> =
         _listaNoticiasRegionales.asStateFlow()
@@ -78,15 +73,14 @@ class NoticiaViewModel(
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
                 // Obtener el userId del usuario autenticado
-                val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val userId = dataStoreManager.getUserId() ?: ""
                 // Obtener el emisoraId del usuario autenticado
-                val emisoraId = repository.obtenerEmisoraId(userId)
-                // Generar un ID único para la noticia
-                val noticiaId = UUID.randomUUID().toString()
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
                 // Crear una nueva noticia con el ID generado
-                val nuevaNoticia = noticia.copy(id = noticiaId)
+                val nuevaNoticia = noticia.copy(imagenUriNoticia = _imagenNoticiaUri.value.toString())
                 // Guardar la noticia en la subcolección noticias dentro del documento de la emisora
-                repository.guardarNoticia(emisoraId, nuevaNoticia)
+                repository.guardarNoticia(nuevaNoticia, emisoraId.toString())
+                // Solo si guardarNoticia fue exitoso, actualizamos los estados
                 _noticiaUiState.value = NoticiaUiState.Success
                 _noticiaCargada.value = nuevaNoticia
             } catch (e: Exception) {
@@ -95,11 +89,13 @@ class NoticiaViewModel(
             }
         }
     }
+
     fun obtenerNoticias(userId: String) {
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
-                val noticias = repository.obtenerNoticias(userId) // Usamos userId
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
+                val noticias = repository.obtenerNoticias(emisoraId.toString())
                 _listaNoticias.value = noticias
                 _noticiaUiState.value = NoticiaUiState.Success
             } catch (e: Exception) {
@@ -114,8 +110,9 @@ class NoticiaViewModel(
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
                 val noticias =
-                    repository.obtenerNoticiasPorCategoria(userId, categoria) // Usamos userId
+                    repository.obtenerNoticiasPorCategoria(emisoraId.toString(), categoria)
                 _listaNoticiasFiltradas.value = noticias
                 _noticiaUiState.value = NoticiaUiState.Success
             } catch (e: Exception) {
@@ -126,26 +123,21 @@ class NoticiaViewModel(
         }
     }
 
-    fun obtenerNoticia(noticiaId: String, userId: String) { // Usamos userId
+    fun obtenerNoticia(noticiaId: String, userId: String) {
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
-                val currentUser = firebaseAuth.currentUser
-                if (currentUser != null) {
-                    val rol = authService.obtenerRolUsuario(userId)
-                    if (rol == Rol.EMISORA) {
-                        val noticia = repository.obtenerNoticia(noticiaId, userId) // Usamos userId
-                        _noticia.value = noticia
-                        _noticiaCargada.value = noticia
-                        _noticiaUiState.value = NoticiaUiState.Success
-                    } else {
-                        _errorGuardandoNoticia.value = "El usuario no tiene el rol EMISORA."
-                        _noticiaUiState.value =
-                            NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
-                    }
+                val rol = dataStoreManager.getRol().first()
+                if (rol == Rol.EMISORA) {
+                    val emisoraId = dataStoreManager.getEmisoraId() ?: ""
+                    val noticia = repository.obtenerNoticia(noticiaId, emisoraId.toString())
+                    _noticia.value = noticia
+                    _noticiaCargada.value = noticia
+                    _noticiaUiState.value = NoticiaUiState.Success
                 } else {
-                    _errorGuardandoNoticia.value = "No hay un usuario autenticado."
-                    _noticiaUiState.value = NoticiaUiState.Error("No hay un usuario autenticado.")
+                    _errorGuardandoNoticia.value = "El usuario no tiene el rol EMISORA."
+                    _noticiaUiState.value =
+                        NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
                 }
             } catch (e: Exception) {
                 _noticiaUiState.value =
@@ -154,30 +146,23 @@ class NoticiaViewModel(
             }
         }
     }
-
-    fun eliminarNoticia(noticiaId: String, userId: String) { // Usamos userId
+    fun eliminarNoticia(noticiaId: String, userId: String) {
         _noticiaUiState.value = NoticiaUiState.Loading
         viewModelScope.launch {
             try {
-                val currentUser = firebaseAuth.currentUser
-                if (currentUser != null) {
-                    val rol = authService.obtenerRolUsuario(userId)
-                    if (rol == Rol.EMISORA) {
-                        repository.eliminarNoticia(noticiaId, userId) // Usamos userId
-                        _errorEliminandoNoticia.value = null
-                        _noticiaUiState.value = NoticiaUiState.Success
-                    } else {
-                        _errorEliminandoNoticia.value = "El usuario no tiene el rol EMISORA."
-                        _noticiaUiState.value =
-                            NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
-                    }
+                val rol = dataStoreManager.getRol().first()
+                if (rol == Rol.EMISORA) {
+                    val emisoraId = dataStoreManager.getEmisoraId() ?: ""
+                    repository.eliminarNoticia(noticiaId, emisoraId.toString())
+                    _errorEliminandoNoticia.value = null
+                    _noticiaUiState.value = NoticiaUiState.Success
                 } else {
-                    _errorEliminandoNoticia.value = "No hay un usuario autenticado."
-                    _noticiaUiState.value = NoticiaUiState.Error("No hay un usuario autenticado.")
+                    _errorEliminandoNoticia.value = "El usuario no tiene el rol EMISORA."
+                    _noticiaUiState.value =
+                        NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
                 }
             } catch (e: Exception) {
-                _errorEliminandoNoticia.value =
-                    e.message ?: "Error al eliminar noticia"
+                _errorEliminandoNoticia.value = e.message ?: "Error al eliminar noticia"
                 _noticiaUiState.value =
                     NoticiaUiState.Error(e.message ?: "Error al eliminar noticia")
             }
@@ -188,24 +173,21 @@ class NoticiaViewModel(
         noticiaId: String,
         noticia: Contenido.Noticia,
         userId: String
-    ) { // Usamos userId
+    ) {
         _noticiaUiState.value = NoticiaUiState.Loading
         viewModelScope.launch {
             try {
-                val currentUser = firebaseAuth.currentUser
-                if (currentUser != null) {
-                    val rol = authService.obtenerRolUsuario(userId)
-                    if (rol == Rol.EMISORA) {
-                        repository.actualizarNoticia(noticiaId, noticia, userId) // Usamos userId
-                        obtenerNoticia(noticiaId, userId) // Usamos userId
-                    } else {
-                        _errorGuardandoNoticia.value = "El usuario no tiene el rol EMISORA."
-                        _noticiaUiState.value =
-                            NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
-                    }
+                val rol = dataStoreManager.getRol().first()
+                if (rol == Rol.EMISORA) {
+                    val emisoraId = dataStoreManager.getEmisoraId() ?: ""
+                    val noticiaConImagen =
+                        noticia.copy(imagenUriNoticia = _imagenNoticiaUri.value.toString())
+                    repository.actualizarNoticia(noticiaId, noticiaConImagen, emisoraId.toString())
+                    obtenerNoticia(noticiaId, userId)
                 } else {
-                    _errorGuardandoNoticia.value = "No hay un usuario autenticado."
-                    _noticiaUiState.value = NoticiaUiState.Error("No hay un usuario autenticado.")
+                    _errorGuardandoNoticia.value = "El usuario no tiene el rol EMISORA."
+                    _noticiaUiState.value =
+                        NoticiaUiState.Error("El usuario no tiene el rol EMISORA.")
                 }
             } catch (e: Exception) {
                 _noticiaUiState.value =
@@ -216,12 +198,13 @@ class NoticiaViewModel(
     }
 
     fun obtenerNoticiasInternacionales(userId: String) {
-        obtenerNoticiasPorCategoria(userId, "Internacional")
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
                 val noticias =
-                    repository.obtenerNoticiasPorCategoria(userId, "Internacional") // Usamos userId
+                    repository.obtenerNoticiasPorCategoria(emisoraId.toString(), "Internacional")
+                // Solo si obtenerNoticiasPorCategoria fue exitoso, actualizamos los estados
                 _listaNoticiasInternacionales.value = noticias
                 _noticiaUiState.value = NoticiaUiState.Success
             } catch (e: Exception) {
@@ -233,12 +216,13 @@ class NoticiaViewModel(
     }
 
     fun obtenerNoticiasNacionales(userId: String) {
-        obtenerNoticiasPorCategoria(userId, "Nacional")
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
                 val noticias =
-                    repository.obtenerNoticiasPorCategoria(userId, "Nacional") // Usamos userId
+                    repository.obtenerNoticiasPorCategoria(emisoraId.toString(), "Nacional")
+                // Solo si obtenerNoticiasPorCategoria fue exitoso, actualizamos los estados
                 _listaNoticiasNacionales.value = noticias
                 _noticiaUiState.value = NoticiaUiState.Success
             } catch (e: Exception) {
@@ -250,12 +234,13 @@ class NoticiaViewModel(
     }
 
     fun obtenerNoticiasRegionales(userId: String) {
-        obtenerNoticiasPorCategoria(userId, "Regional")
         viewModelScope.launch {
             _noticiaUiState.value = NoticiaUiState.Loading
             try {
+                val emisoraId = dataStoreManager.getEmisoraId() ?: ""
                 val noticias =
-                    repository.obtenerNoticiasPorCategoria(userId, "Regional") // Usamos userId
+                    repository.obtenerNoticiasPorCategoria(emisoraId.toString(), "Regional")
+                // Solo si obtenerNoticiasPorCategoria fue exitoso, actualizamos los estados
                 _listaNoticiasRegionales.value = noticias
                 _noticiaUiState.value = NoticiaUiState.Success
             } catch (e: Exception) {
@@ -273,7 +258,7 @@ class NoticiaViewModel(
     }
 
     fun restablecerErrorEliminandoNoticia() {
-        _errorEliminandoNoticia.value = false.toString()
+        _errorEliminandoNoticia.value = null
     }
 
     fun restablecerErrorGuardandoNoticia() {
@@ -282,8 +267,6 @@ class NoticiaViewModel(
     fun restablecerNoticiaGuardada() {
         _noticiaCargada.value = null
     }
-
-
 }
 
 // Sealed class for Noticia UI states

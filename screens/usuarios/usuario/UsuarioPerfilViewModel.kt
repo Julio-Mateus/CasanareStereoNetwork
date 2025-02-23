@@ -9,7 +9,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.storage.FirebaseStorage
 import com.jcmateus.casanarestereo.screens.login.AuthService
-import com.jcmateus.casanarestereo.screens.login.AuthService.User
 import com.jcmateus.casanarestereo.screens.usuarios.emisoras.PerfilEmisora
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

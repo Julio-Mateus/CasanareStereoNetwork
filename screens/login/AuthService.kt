@@ -1,6 +1,5 @@
 package com.jcmateus.casanarestereo.screens.login
 
-
 import android.content.Context
 import android.util.Log
 import android.util.Patterns
@@ -53,17 +52,30 @@ class AuthService(
         val currentUser = firebaseAuth.currentUser
         if (currentUser != null) {
             Log.d("AuthService", "checkSession: Sesión activa encontrada para: ${currentUser.uid}")
-            // Si hay un usuario, obtener el rol y actualizar el estado
+            // El usuario está logueado, guardamos el valor en el datastore
             viewModelScope.launch {
-                val rol = obtenerRolUsuario(currentUser.uid)
-                if (rol != null) {
-                    _authState.value = EstadoAutenticacion.LoggedIn(rol)
-                    dataStoreManager.saveIsLoggedIn(true)
-                    Log.d("AuthService", "checkSession: isLoggedIn guardado como true")
-                } else {
-                    _authState.value = EstadoAutenticacion.LoggedOut
-                    dataStoreManager.saveIsLoggedIn(false)
-                    Log.d("AuthService", "checkSession: isLoggedIn guardado como false")
+                dataStoreManager.saveIsLoggedIn(true)
+                dataStoreManager.saveUserId(currentUser.uid)
+                Log.d("AuthService", "checkSession: isLoggedIn guardado como true")
+                // Intentamos obtener el rol
+                val rolResult = obtenerRolUsuario(currentUser.uid)
+                when (rolResult) {
+                    is RolResult.Success -> {
+                        // Si se obtuvo el rol, actualizamos el estado
+                        _authState.value = EstadoAutenticacion.LoggedIn(rolResult.rol)
+                    }
+                    is RolResult.Error -> {
+                        // Si hubo un error, mostramos un mensaje de error y deslogueamos al usuario
+                        Log.e("AuthService", "checkSession: Error al obtener el rol: ${rolResult.message}")
+                        _authState.value = EstadoAutenticacion.Error(rolResult.message)
+                        cerrarSesion()
+                    }
+                    is RolResult.NoRol -> {
+                        // Si no se encontro el rol, mostramos un mensaje de error y deslogueamos al usuario
+                        Log.e("AuthService", "checkSession: No se encontro el rol")
+                        _authState.value = EstadoAutenticacion.Error("No se encontro el rol")
+                        cerrarSesion()
+                    }
                 }
             }
         } else {
@@ -77,48 +89,44 @@ class AuthService(
     }
 
     // Función para obtener el rol del usuario desde Firestore
-    suspend fun obtenerRolUsuario(userId: String): Rol? {
+    suspend fun obtenerRolUsuario(userId: String): RolResult {
         Log.d("AuthService", "obtenerRolUsuario: Obteniendo rol del usuario: $userId")
-        var rol: Rol? = null
-
-        // Primero, intenta obtener el rol de la colección 'emisoras'
         try {
-            val emisoraDoc = db.collection("emisoras").document(userId).get().await()
-            if (emisoraDoc.exists()) {
-                rol = Rol.EMISORA
-                Log.d("AuthService", "obtenerRolUsuario: Usuario con rol definido: EMISORA")
-                return rol
-            }
-        } catch (e: Exception) {
-            Log.e("AuthService", "Error al obtener el rol de 'emisoras'", e)
-        }
-
-        // Si no se encontró en 'emisoras', intenta obtener el rol de la colección 'usuarios'
-        try {
+            // Primero, intenta obtener el rol de la colección 'usuarios'
             val usuarioDoc = db.collection("usuarios").document(userId).get().await()
             if (usuarioDoc.exists()) {
-                rol = Rol.USUARIO
-                Log.d("AuthService", "obtenerRolUsuario: Usuario con rol definido: USUARIO")
-                return rol
+                val perfilUsuario = usuarioDoc.toObject(PerfilUsuario::class.java)
+                val rol = perfilUsuario?.rol?.let { Rol.valueOf(it) }
+                if (rol != null) {
+                    Log.d("AuthService", "obtenerRolUsuario: Usuario con rol definido: ${rol.name}")
+                    return RolResult.Success(rol)
+                } else {
+                    Log.e("AuthService", "obtenerRolUsuario: El rol es nulo")
+                    return RolResult.NoRol
+                }
+            } else {
+                // Si no se encuentra en 'usuarios', intenta buscar en 'emisoras'
+                val emisoraDoc = db.collection("emisoras").document(userId).get().await()
+                if (emisoraDoc.exists()) {
+                    val perfilEmisora = emisoraDoc.toObject(PerfilEmisora::class.java)
+                    val rol = perfilEmisora?.rol?.let { Rol.valueOf(it) }
+                    if (rol != null) {
+                        Log.d("AuthService", "obtenerRolUsuario: Emisora con rol definido: ${rol.name}")
+                        dataStoreManager.saveEmisoraId(userId)
+                        return RolResult.Success(rol)
+                    } else {
+                        Log.e("AuthService", "obtenerRolUsuario: El rol de la emisora es nulo")
+                        return RolResult.NoRol
+                    }
+                } else {
+                    Log.e("AuthService", "obtenerRolUsuario: No se encontro el usuario ni la emisora")
+                    return RolResult.NoRol
+                }
             }
         } catch (e: Exception) {
-            Log.e("AuthService", "Error al obtener el rol de 'usuarios'", e)
+            Log.e("AuthService", "obtenerRolUsuario: Error al obtener el rol: ${e.message}")
+            return RolResult.Error("Error al obtener el rol: ${e.message}")
         }
-
-        // Si no se encontró en ninguna colección, intenta obtener el rol de la colección 'administradores'
-        try {
-            val administradorDoc = db.collection("administradores").document(userId).get().await()
-            if (administradorDoc.exists()) {
-                rol = Rol.ADMINISTRADOR
-                Log.d("AuthService", "obtenerRolUsuario: Usuario con rol definido: ADMINISTRADOR")
-                return rol
-            }
-        } catch (e: Exception) {
-            Log.e("AuthService", "Error al obtener el rol de 'administradores'", e)
-        }
-
-        Log.d("AuthService", "obtenerRolUsuario: Usuario sin rol definido")
-        return rol
     }
 
     // Obtener el usuario actual
@@ -136,7 +144,7 @@ class AuthService(
     // Verificar si el usuario existe en Firestore y crearlo si es necesario
     suspend fun verificarYCrearUsuarioEnFirestore(
         user: FirebaseUser,
-        selectedRol: Rol?,
+        selectedRol: Rol,
         latitud: Double? = null,
         longitud: Double? = null
     ) {
@@ -146,23 +154,19 @@ class AuthService(
         )
         try {
             val userId = user.uid
-            val collection = when (selectedRol) {
-                Rol.EMISORA -> "emisoras"
-                else -> "usuarios" // Para ADMINISTRADOR y USUARIO
-            }
 
-            val userDocument = db.collection(collection).document(userId).get().await()
-
-            if (!userDocument.exists()) {
-                Log.d(
-                    "AuthService",
-                    "verificarYCrearUsuarioEnFirestore: Usuario no encontrado en '$collection', creando..."
-                )
-                // Crear el objeto correcto según el rol
-                val newUser = when (selectedRol) {
-                    Rol.EMISORA -> {
-                        PerfilEmisora(
-                            id = userId,
+            when (selectedRol) {
+                Rol.EMISORA -> {
+                    // Verificar si la emisora ya existe
+                    val emisoraDoc = db.collection("emisoras").document(userId).get().await()
+                    if (!emisoraDoc.exists()) {
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Emisora no encontrada, creando..."
+                        )
+                        // Crear la emisora
+                        val nuevaEmisora = PerfilEmisora(
+                            emisoraId = userId, // Usamos userId como emisoraId
                             nombre = user.displayName ?: "Sin nombre",
                             email = user.email ?: "",
                             rol = selectedRol.name,
@@ -176,13 +180,56 @@ class AuthService(
                             latitud = latitud,
                             longitud = longitud
                         )
+                        db.collection("emisoras").document(userId).set(nuevaEmisora).await()
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Emisora creada en 'emisoras'"
+                        )
+                        dataStoreManager.saveEmisoraId(userId)
+                    } else {
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Emisora encontrada en 'emisoras'"
+                        )
+                        // Si la emisora ya existe, actualizar los datos
+                        val updates = mutableMapOf<String, Any>()
+                        updates["rol"] = selectedRol.name
+                        if (latitud != null) {
+                            updates["latitud"] = latitud
+                        }
+                        if (longitud != null) {
+                            updates["longitud"] = longitud
+                        }
+                        if (updates.isNotEmpty()) {
+                            db.collection("emisoras").document(userId).update(updates).await()
+                            Log.d(
+                                "AuthService",
+                                "verificarYCrearUsuarioEnFirestore: Datos de emisora actualizados en 'emisoras'"
+                            )
+                        } else {
+                            Log.d(
+                                "AuthService",
+                                "verificarYCrearUsuarioEnFirestore: No hay cambios en los datos de la emisora en 'emisoras'"
+                            )
+                        }
                     }
-                    else -> { // Rol.USUARIO o Rol.ADMINISTRADOR
-                        PerfilUsuario(
+                    // Si el rol es EMISORA, NO se crea ni se actualiza en 'usuarios'
+                }
+
+                else -> { // Rol.USUARIO o Rol.ADMINISTRADOR
+                    // Verificar si el usuario ya existe
+                    val usuarioDoc = db.collection("usuarios").document(userId).get().await()
+                    if (!usuarioDoc.exists()) {
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Usuario no encontrado, creando..."
+                        )
+                        // Crear el usuario
+                        val newUser = PerfilUsuario(
                             uid = userId,
                             nombre = user.displayName ?: "Sin nombre",
                             email = user.email ?: "",
-                            rol = selectedRol?.name.toString(),
+                            rol = selectedRol.name,
                             avatarUrl = null,
                             frase = null,
                             profesion = null,
@@ -192,45 +239,38 @@ class AuthService(
                             latitud = latitud,
                             longitud = longitud
                         )
+                        db.collection("usuarios").document(userId).set(newUser.toMap()).await()
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Usuario creado en 'usuarios'"
+                        )
+                    } else {
+                        Log.d(
+                            "AuthService",
+                            "verificarYCrearUsuarioEnFirestore: Usuario encontrado en 'usuarios'"
+                        )
+                        // Si el usuario ya existe, actualizar los datos
+                        val updates = mutableMapOf<String, Any>()
+                        updates["rol"] = selectedRol.name
+                        if (latitud != null) {
+                            updates["latitud"] = latitud
+                        }
+                        if (longitud != null) {
+                            updates["longitud"] = longitud
+                        }
+                        if (updates.isNotEmpty()) {
+                            db.collection("usuarios").document(userId).update(updates).await()
+                            Log.d(
+                                "AuthService",
+                                "verificarYCrearUsuarioEnFirestore: Datos de usuario actualizados en 'usuarios'"
+                            )
+                        } else {
+                            Log.d(
+                                "AuthService",
+                                "verificarYCrearUsuarioEnFirestore: No hay cambios en los datos del usuario en 'usuarios'"
+                            )
+                        }
                     }
-                }
-
-                // Guardar el objeto en Firestore
-                if (newUser is PerfilEmisora) {
-                    db.collection(collection).document(userId).set(newUser).await()
-                } else if (newUser is PerfilUsuario) {
-                    db.collection(collection).document(userId).set(newUser.toMap()).await()
-                }
-
-                Log.d(
-                    "AuthService",
-                    "verificarYCrearUsuarioEnFirestore: Usuario creado en '$collection'"
-                )
-            } else {
-                Log.d(
-                    "AuthService",
-                    "verificarYCrearUsuarioEnFirestore: Usuario encontrado en '$collection'"
-                )
-                // Si el usuario ya existe, actualizar el rol y la ubicación si es necesario
-                val updates = mutableMapOf<String, Any>()
-                updates["rol"] = selectedRol?.name as Any
-                if (latitud != null) {
-                    updates["latitud"] = latitud
-                }
-                if (longitud != null) {
-                    updates["longitud"] = longitud
-                }
-                if (updates.isNotEmpty()) {
-                    db.collection(collection).document(userId).update(updates).await()
-                    Log.d(
-                        "AuthService",
-                        "verificarYCrearUsuarioEnFirestore: Datos de usuario actualizados en '$collection'"
-                    )
-                } else {
-                    Log.d(
-                        "AuthService",
-                        "verificarYCrearUsuarioEnFirestore: No hay cambios en los datos del usuario en '$collection'"
-                    )
                 }
             }
         } catch (e: Exception) {
@@ -268,11 +308,22 @@ class AuthService(
                 // Verificar y crear el usuario en Firestore
                 verificarYCrearUsuarioEnFirestore(user, selectedRol, latitud, longitud)
                 // Obtener el rol del usuario
-                val rol = obtenerRolUsuario(user.uid)
-                _authState.value = EstadoAutenticacion.LoggedIn(rol)
-                dataStoreManager.saveIsLoggedIn(true)
-                Log.d("AuthService", "crearUsuarioConCorreoYContrasena: isLoggedIn guardado como true")
-                checkSession()
+                val rolResult = obtenerRolUsuario(user.uid)
+                when (rolResult) {
+                    is RolResult.Success -> {
+                        _authState.value = EstadoAutenticacion.LoggedIn(rolResult.rol)
+                        dataStoreManager.saveIsLoggedIn(true)
+                        Log.d("AuthService", "crearUsuarioConCorreoYContrasena: isLoggedIn guardado como true")
+                    }
+                    is RolResult.Error -> {
+                        _authState.value = EstadoAutenticacion.Error(rolResult.message)
+                        Log.e("AuthService", "crearUsuarioConCorreoYContrasena: Error al obtener el rol: ${rolResult.message}")
+                    }
+                    is RolResult.NoRol -> {
+                        _authState.value = EstadoAutenticacion.Error("No se encontro el rol")
+                        Log.e("AuthService", "crearUsuarioConCorreoYContrasena: No se encontro el rol")
+                    }
+                }
             } else {
                 _authState.value =
                     EstadoAutenticacion.Error("Error al crear el usuario")
@@ -314,10 +365,22 @@ class AuthService(
                     "iniciarSesionConCorreoYContrasena: Usuario obtenido: ${user.uid}"
                 )
                 // Obtener el rol del usuario
-                val rol = obtenerRolUsuario(user.uid)
-                _authState.value = EstadoAutenticacion.LoggedIn(rol)
-                dataStoreManager.saveIsLoggedIn(true)
-                Log.d("AuthService", "iniciarSesionConCorreoYContrasena: isLoggedIn guardado como true")
+                val rolResult = obtenerRolUsuario(user.uid)
+                when (rolResult) {
+                    is RolResult.Success -> {
+                        _authState.value = EstadoAutenticacion.LoggedIn(rolResult.rol)
+                        dataStoreManager.saveIsLoggedIn(true)
+                        Log.d("AuthService", "iniciarSesionConCorreoYContrasena: isLoggedIn guardado como true")
+                    }
+                    is RolResult.Error -> {
+                        _authState.value = EstadoAutenticacion.Error(rolResult.message)
+                        Log.e("AuthService", "iniciarSesionConCorreoYContrasena: Error al obtener el rol: ${rolResult.message}")
+                    }
+                    is RolResult.NoRol -> {
+                        _authState.value = EstadoAutenticacion.Error("No se encontro el rol")
+                        Log.e("AuthService", "iniciarSesionConCorreoYContrasena: No se encontro el rol")
+                    }
+                }
             } else {
                 _authState.value =
                     EstadoAutenticacion.Error("Error al obtener el usuario")
@@ -342,7 +405,7 @@ class AuthService(
     suspend fun iniciarSesionConGoogle(
         context: Context,
         credential: AuthCredential,
-        selectedRol: Rol?
+        selectedRol: Rol // Modificado a Rol (non-nullable)
     ) {
         Log.d("AuthService", "iniciarSesionConGoogle: Iniciando sesión con Google")
         _authState.value = EstadoAutenticacion.Loading
@@ -357,12 +420,24 @@ class AuthService(
             if (user != null) {
                 Log.d("AuthService", "iniciarSesionConGoogle: Usuario obtenido: ${user.uid}")
                 // Verificar y crear el usuario en Firestore
-                verificarYCrearUsuarioEnFirestore(user, selectedRol)
+                verificarYCrearUsuarioEnFirestore(user, selectedRol) // Pasando selectedRol
                 // Obtener el rol del usuario
-                val rol = obtenerRolUsuario(user.uid)
-                _authState.value = EstadoAutenticacion.LoggedIn(rol)
-                dataStoreManager.saveIsLoggedIn(true)
-                Log.d("AuthService", "iniciarSesionConGoogle: isLoggedIn guardado como true")
+                val rolResult = obtenerRolUsuario(user.uid)
+                when (rolResult) {
+                    is RolResult.Success -> {
+                        _authState.value = EstadoAutenticacion.LoggedIn(rolResult.rol)
+                        dataStoreManager.saveIsLoggedIn(true)
+                        Log.d("AuthService", "iniciarSesionConGoogle: isLoggedIn guardado como true")
+                    }
+                    is RolResult.Error -> {
+                        _authState.value = EstadoAutenticacion.Error(rolResult.message)
+                        Log.e("AuthService", "iniciarSesionConGoogle: Error al obtener el rol: ${rolResult.message}")
+                    }
+                    is RolResult.NoRol -> {
+                        _authState.value = EstadoAutenticacion.Error("No se encontro el rol")
+                        Log.e("AuthService", "iniciarSesionConGoogle: No se encontro el rol")
+                    }
+                }
             } else {
                 Log.e(
                     "AuthService",
@@ -406,6 +481,12 @@ class AuthService(
     // Validar correo electrónico
     fun isValidEmail(email: String): Boolean {
         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+    // Clase sellada para representar el resultado de obtenerRolUsuario
+    sealed class RolResult {
+        data class Success(val rol: Rol) : RolResult()
+        data class Error(val message: String) : RolResult()
+        object NoRol : RolResult()
     }
 }
 

@@ -114,7 +114,7 @@ fun EmisoraDetalles(
                 Button(
                     onClick = {
                         // Navegar a NoticiasScreen y pasar el ID de la emisora
-                        navController.navigate("${Destinos.NoticiasScreen.ruta}/${emisora.id}")
+                        navController.navigate("${Destinos.NoticiasScreen.ruta}/${emisora.emisoraId}")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
@@ -125,7 +125,7 @@ fun EmisoraDetalles(
                 Button(
                     onClick = {
                         // Navegar a ListaPodcast y pasar el ID de la emisora
-                        navController.navigate("${Destinos.ListaPodcast.ruta}/${emisora.id}")
+                        navController.navigate("${Destinos.ListaPodcast.ruta}/${emisora.emisoraId}")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
@@ -136,7 +136,7 @@ fun EmisoraDetalles(
                 Button(
                     onClick = {
                         // Navegar a ListaPrograma y pasar el ID de la emisora
-                        navController.navigate("${Destinos.ListaPrograma.ruta}/${emisora.id}")
+                        navController.navigate("${Destinos.ListaPrograma.ruta}/${emisora.emisoraId}")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {

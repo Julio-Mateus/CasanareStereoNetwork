@@ -20,13 +20,11 @@ import kotlinx.coroutines.launch
 
 class LoginScreenViewModel(
     private val dataStoreManager: DataStoreManager,
-    private val authService: AuthService,
-    private val firebaseAuth: FirebaseAuth
+    private val authService: AuthService
 ) : ViewModel() {
     sealed class LoginError {
         data class GenericError(val message: String) : LoginError()
-        object NoRolSelected : LoginError()
-        // ... (otros tipos de errores)
+        object NoRolSelectedOnGoogleLogin : LoginError()
     }
 
     private val _isLoading = MutableStateFlow(false)
@@ -41,23 +39,19 @@ class LoginScreenViewModel(
     private val _loginError = MutableStateFlow<LoginError?>(null)
     val loginError: StateFlow<LoginError?> = _loginError.asStateFlow()
 
-    // Usamos Destinos en lugar de NavigationDestination
     private val _navigateTo = MutableStateFlow<String?>(null)
     val navigateTo: StateFlow<String?> = _navigateTo.asStateFlow()
 
     val authState: StateFlow<EstadoAutenticacion> = authService.authState
 
-    // Nuevo estado para la persistencia de sesión
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    // Nuevo estado para el rol del usuario
     private val _userRol = MutableStateFlow<Rol>(Rol.USUARIO)
     val userRol: StateFlow<Rol> = _userRol.asStateFlow()
 
     init {
         Log.d("LoginScreenViewModel", "init: LoginScreenViewModel inicializado")
-        // Observar los cambios en authState
         observeAuthState()
         observeUserRol()
     }
@@ -81,24 +75,9 @@ class LoginScreenViewModel(
                         val rol = estado.rol
                         _errorMessage.value = null
                         _successMessage.value = "Inicio de sesión exitoso"
-                        if (rol != null) {
-                            _userRol.value = rol
-                            navigateToScreenByRol(rol)
-                            // Navegar a la pantalla correspondiente según el rol
-                            //navigateToScreenByRol(rol) // Eliminar esta linea
-                        } else {
-                            _loginError.value = LoginError.GenericError("Rol es null")
-                            Log.e("LoginScreenViewModel", "observeAuthState: Rol es null")
-                        }
+                        _userRol.value = rol
+                        navigateToScreenByRol(rol)
                         _isLoggedIn.value = true
-
-                    }
-
-                    is EstadoAutenticacion.LoggedInWithPendingRol -> {
-                        _errorMessage.value = null
-                        _successMessage.value = "Inicio de sesión exitoso, obteniendo rol..."
-                        _navigateTo.value = null
-                        _isLoggedIn.value = true // Mantener isLoggedIn en true
                     }
 
                     is EstadoAutenticacion.LoggedOut -> {
@@ -131,19 +110,16 @@ class LoginScreenViewModel(
     private fun observeUserRol() {
         viewModelScope.launch {
             dataStoreManager.getRol().collectLatest { rol ->
-                _userRol.value = rol ?: Rol.USUARIO // Agregar esta linea
+                _userRol.value = rol ?: Rol.USUARIO
             }
         }
     }
-
-
-
 
     fun crearUsuarioConCorreoYContrasena(
         email: String,
         password: String,
         checkTerminos: Boolean,
-        selectedRol: Rol?, // Ahora el rol es nullable
+        selectedRol: Rol,
         latitud: Double? = null,
         longitud: Double? = null
     ) {
@@ -153,23 +129,14 @@ class LoginScreenViewModel(
         )
         viewModelScope.launch {
             _isLoading.value = true
-            if (selectedRol != null) {
-                authService.crearUsuarioConCorreoYContrasena(
-                    email,
-                    password,
-                    selectedRol,
-                    latitud,
-                    longitud
-                )
-                // Guardar que no ha completado el formulario
-                if (selectedRol != null) {
-                    dataStoreManager.saveHasCompletedForm(false)
-                }
-            } else {
-                _loginError.value = LoginError.NoRolSelected
-                _errorMessage.value = "Por favor, selecciona un rol."
-                Log.e("LoginScreenViewModel", "crearUsuarioConCorreoYContrasena: Rol es null")
-            }
+            authService.crearUsuarioConCorreoYContrasena(
+                email,
+                password,
+                selectedRol,
+                latitud,
+                longitud
+            )
+            dataStoreManager.saveHasCompletedForm(false)
             _isLoading.value = false
         }
     }
@@ -204,11 +171,10 @@ class LoginScreenViewModel(
                 if (selectedRol != null) {
                     authService.iniciarSesionConGoogle(context, credential, selectedRol)
                 } else {
-                    _loginError.value = LoginError.NoRolSelected
+                    _loginError.value = LoginError.NoRolSelectedOnGoogleLogin
                     _errorMessage.value = "Por favor, selecciona un rol."
                     Log.e("LoginScreenViewModel", "iniciarSesionConGoogle: Rol es null")
                 }
-                // El manejo del éxito y la navegación ahora se hace en observeAuthState
             } catch (e: Exception) {
                 _errorMessage.value = "Error al iniciar sesión con Google: ${e.message}"
                 Log.e("LoginScreenViewModel", "iniciarSesionConGoogle: Error: ${e.message}")
@@ -217,6 +183,7 @@ class LoginScreenViewModel(
             }
         }
     }
+
     fun clearErrorMessage() {
         _errorMessage.value = null
     }
@@ -225,10 +192,9 @@ class LoginScreenViewModel(
         _successMessage.value = null
         _navigateTo.value = null
     }
+
     fun setSuccessMessage(destino: String) {
         _successMessage.value = "Inicio de sesión exitoso"
         _navigateTo.value = destino
     }
 }
-
-

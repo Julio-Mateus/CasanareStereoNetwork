@@ -12,7 +12,7 @@ class LoginScreenViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginScreenViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return LoginScreenViewModel(dataStoreManager, authService, firebaseAuth) as T
+            return LoginScreenViewModel(dataStoreManager, authService) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

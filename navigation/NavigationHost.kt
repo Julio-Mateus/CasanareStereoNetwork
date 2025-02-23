@@ -211,7 +211,7 @@ fun NavigationHost(
 
     NavHost(
         navController = navController,
-        startDestination = Destinos.SplashScreen.ruta,
+        startDestination = Destinos.PantallaPresentacion.ruta,
         modifier = Modifier.padding(paddingValues = innerPadding)
     ) {
         // Inicio
@@ -219,7 +219,6 @@ fun NavigationHost(
             SplashScreen(
                 navController = navController,
                 authService = authService,
-                loginViewModel = loginViewModel,
                 dataStoreManager = dataStoreManager,
                 emisoraRepository = emisoraRepository // Corregido: Usa la instancia recibida
             )

@@ -38,6 +38,36 @@ class DataStoreManager(private val dataStore: DataStore<Preferences>) {
         val HAS_COMPLETED_FORM = booleanPreferencesKey("has_completed_form")
         val IS_CREATING_ACCOUNT = booleanPreferencesKey("is_creating_account")
         val IS_FIRST_TIME_APP_OPEN = booleanPreferencesKey("is_first_time_app_open")
+
+        val USER_ID = stringPreferencesKey("user_id")
+        val EMISORA_ID = stringPreferencesKey("emisora_id")
+    }
+
+    suspend fun saveUserId(userId: String) {
+        dataStore.edit { preferences ->
+            preferences[USER_ID] = userId
+        }
+    }
+
+    fun getUserId(): Flow<String?> {
+        return dataStore.data
+            .handleDataStoreError()
+            .map { preferences ->
+                preferences[USER_ID]
+            }
+    }
+    suspend fun saveEmisoraId(emisoraId: String) {
+        dataStore.edit { preferences ->
+            preferences[EMISORA_ID] = emisoraId
+        }
+    }
+
+    fun getEmisoraId(): Flow<String?> {
+        return dataStore.data
+            .handleDataStoreError()
+            .map { preferences ->
+                preferences[EMISORA_ID]
+            }
     }
 
     fun getIsCreatingAccount(): Flow<Boolean> = dataStore.data

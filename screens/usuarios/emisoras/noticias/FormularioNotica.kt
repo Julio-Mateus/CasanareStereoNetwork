@@ -374,17 +374,17 @@ fun FormularioNoticia(
 
 
         }
-        LaunchedEffect(key1 = noticiaCargada) {
-            noticiaCargada?.let {
-                val noticiaJson = Gson().toJson(it)
-                navController.navigate(Destinos.VistaNoticia(noticiaJson).ruta + "?noticiaJson=$noticiaJson")
-                //noticiaViewModel.restablecerNoticiaGuardada() // Restablecer el estado
-            }
-        }
-        // Utilizar un LaunchedEffect para la navegación
         LaunchedEffect(key1 = noticiaUiState) {
+            Log.d(
+                "FormularioNoticia",
+                "LaunchedEffect(noticiaUiState): noticiaUiState = $noticiaUiState"
+            )
             when (val state = noticiaUiState) {
                 is NoticiaUiState.Success -> {
+                    Log.d(
+                        "FormularioNoticia",
+                        "LaunchedEffect(noticiaUiState): Noticia guardada correctamente"
+                    )
                     Toast.makeText(
                         context,
                         if (isEditing) "Noticia actualizada correctamente" else "Noticia guardada correctamente",
@@ -393,6 +393,10 @@ fun FormularioNoticia(
                 }
 
                 is NoticiaUiState.Error -> {
+                    Log.d(
+                        "FormularioNoticia",
+                        "LaunchedEffect(noticiaUiState): Error al guardar la noticia: ${state.message}"
+                    )
                     Toast.makeText(
                         context,
                         "Error al guardar la noticia: ${state.message}",
@@ -402,8 +406,24 @@ fun FormularioNoticia(
                 }
 
                 is NoticiaUiState.Loading -> {
+                    Log.d("FormularioNoticia", "LaunchedEffect(noticiaUiState): Cargando...")
                     // Puedes agregar un indicador de carga aquí si lo deseas
                 }
+            }
+        }
+        LaunchedEffect(key1 = noticiaCargada) {
+            Log.d(
+                "FormularioNoticia",
+                "LaunchedEffect(noticiaCargada): noticiaCargada = $noticiaCargada"
+            )
+            noticiaCargada?.let {
+                Log.d(
+                    "FormularioNoticia",
+                    "LaunchedEffect(noticiaCargada): Navegando a VistaNoticia"
+                )
+                val noticiaJson = Gson().toJson(it)
+                navController.navigate(Destinos.VistaNoticia(noticiaJson).ruta + "?noticiaJson=$noticiaJson")
+                noticiaViewModel.restablecerNoticiaGuardada() // Restablecer el estado
             }
         }
     }
