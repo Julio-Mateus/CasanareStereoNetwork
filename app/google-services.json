@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "792234410149",
+    "firebase_url": "https://casanarestereo-default-rtdb.firebaseio.com",
+    "project_id": "casanarestereo",
+    "storage_bucket": "casanarestereo.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792234410149:android:46301a14830371fd124d4c",
+        "android_client_info": {
+          "package_name": "com.jcmateus.casanarestereo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "792234410149-fa80cftlftojc7hpqhbcfhn9c2trek51.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jcmateus.casanarestereo",
+            "certificate_hash": "9e0eda805413b9b70ca88a133cde59778e4cd6b8"
+          }
+        },
+        {
+          "client_id": "792234410149-33q9p90prlr9migq7ssdmjanlklc7285.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYgkA64xVh_DL7dheDbdKbzlpuzC6OTaw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "792234410149-33q9p90prlr9migq7ssdmjanlklc7285.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

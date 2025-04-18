@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/navigation"
+    app:startDestination="@id/splashScreen">
+
+    <!-- Splash Screen -->
+    <composable
+        android:id="@+id/splashScreen"
+        android:name="com.jcmateus.casanarestereo.screens.SplashScreen"
+        android:label="SplashScreen">
+        <action
+            android:id="@+id/action_splashScreen_to_pantallaPresentacion"
+            app:destination="@id/pantallaPresentacion"
+            app:popUpTo="@id/splashScreen"
+            app:popUpToInclusive="true" />
+    </composable>
+
+    <!-- Pantalla de Presentación -->
+    <composable
+        android:id="@+id/pantallaPresentacion"
+        android:name="com.jcmateus.casanarestereo.screens.PantallaPresentacion"
+        android:label="PantallaPresentacion">
+        <action
+            android:id="@+id/action_pantallaPresentacion_to_casanareLoginScreen"
+            app:destination="@id/casanareLoginScreen"
+            app:popUpTo="@id/pantallaPresentacion"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_pantallaPresentacion_to_homeCasanareVista"
+            app:destination="@id/homeCasanareVista"
+            app:popUpTo="@id/pantallaPresentacion"
+            app:popUpToInclusive="true" />
+    </composable>
+
+    <!-- Pantalla de Login -->
+    <composable
+        android:id="@+id/casanareLoginScreen"
+        android:name="com.jcmateus.casanarestereo.screens.CasanareLoginScreen"
+        android:label="CasanareLoginScreen">
+        <action
+            android:id="@+id/action_casanareLoginScreen_to_homeCasanareVista"
+            app:destination="@id/homeCasanareVista"
+            app:popUpTo="@id/casanareLoginScreen"
+            app:popUpToInclusive="true" />
+    </composable>
+
+    <!-- Home -->
+    <composable
+        android:id="@+id/homeCasanareVista"
+        android:name="com.jcmateus.casanarestereo.screens.HomeCasanareVista"
+        android:label="HomeCasanareVista" />
+
+    <!-- ... otras rutas ... -->
+
+    <!-- Pantalla 1 -->
+    <composable
+        android:id="@+id/pantalla1"
+        android:name="com.jcmateus.casanarestereo.screens.menus.Pantalla1"
+        android:label="Pantalla1" />
+
+    <!-- Pantalla 2 -->
+    <composable
+        android:id="@+id/pantalla2"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla2"
+        android:label="Pantalla2" />
+
+    <!-- Pantalla 3 -->
+    <composable
+        android:id="@+id/pantalla3"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla3"
+        android:label="Pantalla3" />
+
+    <!-- Pantalla 4 -->
+    <composable
+        android:id="@+id/pantalla4"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla4"
+        android:label="Pantalla4" />
+
+    <!-- Pantalla 5 -->
+    <composable
+        android:id="@+id/pantalla5"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla5"
+        android:label="Pantalla5" />
+
+    <!-- Pantalla 6 -->
+    <composable
+        android:id="@+id/pantalla6"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla6"
+        android:label="Pantalla6" />
+
+    <!-- Pantalla 7 -->
+    <composable
+        android:id="@+id/pantalla7"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla7"
+        android:label="Pantalla7" />
+
+    <!-- Pantalla 8 -->
+    <composable
+        android:id="@+id/pantalla8"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla8"
+        android:label="Pantalla8" />
+
+    <!-- Pantalla 9 -->
+    <composable
+        android:id="@+id/pantalla9"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla9"
+        android:label="Pantalla9" />
+
+    <!-- Pantalla 10 -->
+    <composable
+        android:id="@+id/pantalla10"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla10"
+        android:label="Pantalla10" />
+
+    <!-- Pantalla 11 -->
+    <composable
+        android:id="@+id/pantalla11"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla11"
+        android:label="Pantalla11" />
+
+    <!-- Pantalla 12 -->
+    <composable
+        android:id="@+id/pantalla12"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla12"
+        android:label="Pantalla12" />
+
+    <!-- Pantalla 13 -->
+    <composable
+        android:id="@+id/pantalla13"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla13"
+        android:label="Pantalla13" />
+
+    <!-- Pantalla 15 -->
+    <composable
+        android:id="@+id/pantalla15"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla15"
+        android:label="Pantalla15" />
+
+    <!-- Pantalla 16 -->
+    <composable
+        android:id="@+id/pantalla16"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla16"
+        android:label="Pantalla16" />
+
+    <!-- Pantalla 17 -->
+    <composable
+        android:id="@+id/pantalla17"
+        android:name="com.jcmateus.casanarestereo.screens.Pantalla17"
+        android:label="Pantalla17" />
+
+    <!-- EmisoraVista -->
+    <composable
+        android:id="@+id/emisoraVista"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.EmisoraVista"
+        android:label="EmisoraVista" />
+
+    <!-- FormularioPerfilEmisora -->
+    <composable
+        android:id="@+id/formularioPerfilEmisora"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.FormularioPerfilEmisora"
+        android:label="FormularioPerfilEmisora" />
+
+    <!-- Vista Noticia -->
+    <composable
+        android:id="@+id/vistaNoticias"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.VistaNoticia"
+        android:label="VistaNoticias">
+        <argument
+            android:name="noticiaJson"
+            app:argType="string" />
+    </composable>
+
+    <!-- Formulario Noticia -->
+    <composable
+        android:id="@+id/formularioNoticia"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.noticias.FormularioNoticia"
+        android:label="FormularioNoticia" />
+
+    <!-- Formulario Podcast -->
+    <composable
+        android:id="@+id/formularioPodcast"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.podcast.FormularioPodcast"
+        android:label="FormularioPodcast" />
+
+    <!-- Formulario Programa -->
+    <composable
+        android:id="@+id/formularioPrograma"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.programas.FormularioPrograma"
+        android:label="FormularioPrograma" />
+
+    <!-- Formulario Banner -->
+    <composable
+        android:id="@+id/formularioBanner"
+        android:name="com.jcmateus.casanarestereo.screens.usuarios.emisoras.banners.FormularioBanner"
+        android:label="FormularioBanner" />
+
+</navigation>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.CasanareStereo" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Otros atributos de tu tema principal -->
+    </style>
+</resources>
