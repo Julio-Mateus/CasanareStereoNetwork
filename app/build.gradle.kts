@@ -29,8 +29,8 @@ android {
         applicationId = "com.jcmateus.casanarestereo"
         minSdk = 25
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.1.3"
+        versionCode = 11
+        versionName = "1.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -150,6 +150,7 @@ dependencies {
         exclude(group = "androidx.test.espresso", module = "espresso-core")
     }
     implementation(libs.support.annotations)
+
 
     // Testing
     testImplementation(libs.junit)
